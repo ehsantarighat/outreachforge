@@ -1,6 +1,14 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Suspense } from "react";
+import { loadSettings } from "@/app/actions/settings";
+import { SettingsClient } from "./settings-client";
 
-export default function SettingsPage() {
+export default async function SettingsPage() {
+  const settings = await loadSettings();
+
+  if (!settings) {
+    return null;
+  }
+
   return (
     <div className="mx-auto max-w-2xl">
       <div className="mb-8">
@@ -9,15 +17,9 @@ export default function SettingsPage() {
           Manage your profile, API keys, and integrations
         </p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Settings</CardTitle>
-          <CardDescription>
-            Profile, Anthropic API key, and Gmail integration — coming in Step 3.
-          </CardDescription>
-        </CardHeader>
-        <CardContent />
-      </Card>
+      <Suspense>
+        <SettingsClient settings={settings} />
+      </Suspense>
     </div>
   );
 }
