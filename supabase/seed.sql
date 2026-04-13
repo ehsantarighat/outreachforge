@@ -1,0 +1,2 @@
+-- Seed data for local development
+-- Add test fixtures here in Step 2 after schema migration runs
