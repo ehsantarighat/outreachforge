@@ -18,7 +18,8 @@ async function getOrgId() {
     .from("organization_members")
     .select("organization_id")
     .eq("user_id", user.id)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (data?.organization_id) return data.organization_id as string;
 
