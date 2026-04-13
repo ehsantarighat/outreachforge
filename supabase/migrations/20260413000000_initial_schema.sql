@@ -135,12 +135,10 @@ create policy "members can update own org"
     select organization_id from public.organization_members where user_id = auth.uid()
   ));
 
--- organization_members
+-- organization_members (simple: user can see their own rows only)
 create policy "members can select memberships"
   on public.organization_members for select
-  using (organization_id in (
-    select organization_id from public.organization_members where user_id = auth.uid()
-  ));
+  using (user_id = auth.uid());
 
 -- user_settings
 create policy "users can select own settings"
