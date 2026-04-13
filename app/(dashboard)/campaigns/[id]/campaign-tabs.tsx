@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BriefTab } from "./brief-tab";
 import { SettingsTab } from "./settings-tab";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserPlus } from "lucide-react";
 
 interface Campaign {
   id: string;
@@ -25,14 +28,17 @@ export function CampaignTabs({ campaign }: { campaign: Campaign }) {
       <TabsContent value="pipeline">
         <Card className="border-dashed">
           <CardHeader className="text-center">
-            <CardTitle>Pipeline view</CardTitle>
+            <CardTitle>No leads yet</CardTitle>
             <CardDescription>
-              Lead table and Kanban board — coming in Step 6.
-              <br />
-              First, add leads to this campaign.
+              Add leads to this campaign to get started.
             </CardDescription>
           </CardHeader>
-          <CardContent />
+          <CardContent className="flex justify-center pb-8">
+            <Button nativeButton={false} render={<Link href={`/campaigns/${campaign.id}/leads/new`} />}>
+              <UserPlus className="mr-2 h-4 w-4" />
+              Add leads
+            </Button>
+          </CardContent>
         </Card>
       </TabsContent>
 
