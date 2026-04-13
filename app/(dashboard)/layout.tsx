@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
+import { SignOutButton } from "@/components/auth/sign-out-button";
+import { createClient } from "@/lib/supabase/server";
 import { LayoutDashboard, Settings, CreditCard, List } from "lucide-react";
 
 const navItems = [
@@ -10,11 +13,20 @@ const navItems = [
   { href: "/billing", label: "Billing", icon: CreditCard },
 ];
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-sm">
@@ -36,10 +48,11 @@ export default function DashboardLayout({
             ))}
           </nav>
           <div className="flex items-center gap-2">
+            <span className="hidden text-xs text-muted-foreground sm:block">
+              {user.email}
+            </span>
             <ModeToggle />
-            <Button variant="ghost" size="sm" render={<Link href="/login" />}>
-              Sign out
-            </Button>
+            <SignOutButton />
           </div>
         </div>
       </header>
