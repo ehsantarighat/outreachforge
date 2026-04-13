@@ -9,14 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { saveProfile, saveAnthropicKey, testAnthropicKey, disconnectGmail } from "@/app/actions/settings";
-import { CheckCircle, XCircle, Loader2, Mail, Key, User } from "lucide-react";
+import { saveProfile, disconnectGmail } from "@/app/actions/settings";
+import { CheckCircle, XCircle, Loader2, Mail, User } from "lucide-react";
 
 interface Settings {
   email: string;
   default_sender_name: string;
   default_signature: string;
-  has_anthropic_key: boolean;
   gmail_email: string | null;
 }
 
@@ -43,8 +42,6 @@ export function SettingsClient({ settings }: { settings: Settings }) {
       )}
 
       <ProfileSection settings={settings} />
-      <Separator />
-      <AnthropicSection hasKey={settings.has_anthropic_key} />
       <Separator />
       <GmailSection gmailEmail={settings.gmail_email} />
     </div>
@@ -117,129 +114,6 @@ function ProfileSection({ settings }: { settings: Settings }) {
             Save profile
           </Button>
         </form>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Anthropic API key ────────────────────────────────────────────────────────
-
-function AnthropicSection({ hasKey }: { hasKey: boolean }) {
-  const [isSaving, startSave] = useTransition();
-  const [isTesting, startTest] = useTransition();
-  const [saveResult, setSaveResult] = useState<{ success?: boolean; error?: string } | null>(null);
-  const [testResult, setTestResult] = useState<{ success?: boolean; error?: string } | null>(null);
-  const [showInput, setShowInput] = useState(!hasKey);
-
-  function handleSave(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    setSaveResult(null);
-    setTestResult(null);
-    startSave(async () => {
-      const res = await saveAnthropicKey(formData);
-      setSaveResult(res);
-      if (res.success) setShowInput(false);
-    });
-  }
-
-  function handleTest() {
-    setTestResult(null);
-    startTest(async () => {
-      const res = await testAnthropicKey();
-      setTestResult(res);
-    });
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Key className="h-5 w-5 text-muted-foreground" />
-          <CardTitle className="text-lg">Anthropic API Key</CardTitle>
-        </div>
-        <CardDescription>
-          Your key is used to run research and drafting. It is encrypted at rest
-          and never logged.{" "}
-          <a
-            href="https://console.anthropic.com/settings/keys"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="underline underline-offset-2"
-          >
-            Get a key →
-          </a>
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {hasKey && !showInput ? (
-          <div className="flex items-center justify-between rounded-lg border px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary">Saved</Badge>
-              <span className="text-sm text-muted-foreground">sk-ant-••••••••</span>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setShowInput(true)}>
-              Replace
-            </Button>
-          </div>
-        ) : (
-          <form onSubmit={handleSave} className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="anthropic_api_key">API key</Label>
-              <Input
-                id="anthropic_api_key"
-                name="anthropic_api_key"
-                type="password"
-                placeholder="sk-ant-..."
-                autoComplete="off"
-                required
-              />
-            </div>
-            {saveResult?.error && (
-              <p className="text-sm text-red-600">{saveResult.error}</p>
-            )}
-            {saveResult?.success && (
-              <p className="text-sm text-green-600">Key saved.</p>
-            )}
-            <div className="flex gap-2">
-              <Button type="submit" disabled={isSaving}>
-                {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Save key
-              </Button>
-              {hasKey && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setShowInput(false)}
-                >
-                  Cancel
-                </Button>
-              )}
-            </div>
-          </form>
-        )}
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleTest}
-            disabled={isTesting || !hasKey}
-          >
-            {isTesting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Test connection
-          </Button>
-          {testResult?.success && (
-            <span className="flex items-center gap-1.5 text-sm text-green-600">
-              <CheckCircle className="h-4 w-4" /> Connected
-            </span>
-          )}
-          {testResult?.error && (
-            <span className="flex items-center gap-1.5 text-sm text-red-600">
-              <XCircle className="h-4 w-4" /> {testResult.error}
-            </span>
-          )}
-        </div>
       </CardContent>
     </Card>
   );

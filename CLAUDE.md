@@ -35,7 +35,7 @@ OutreachForge is a **multi-tenant SaaS web application** for AI-powered B2B outb
 - **Auth + DB:** Supabase (Postgres, Auth, Row-Level Security) using `@supabase/ssr`
 - **Background jobs:** Inngest
 - **Payments:** Stripe (`stripe` Node SDK + webhooks)
-- **LLM:** `@anthropic-ai/sdk` — **users supply their own API key (BYOK)**. The server proxies calls using the user's stored key, never a platform key (except for an optional one-time trial credit, decided later).
+- **LLM:** `@anthropic-ai/sdk` — **platform key model**. A single `ANTHROPIC_API_KEY` server env var is used for all users. Users do NOT supply their own key. Usage is controlled via per-plan caps (trial: 25, solo: 200, pro: 1000 leads/month).
 - **Email sending (outbound from users):** Gmail API via `googleapis`, OAuth-connected per user. Never SMTP, never a shared sender.
 - **Email sending (transactional from us):** Resend (signup confirmations, password resets only)
 - **Web search (research):** Tavily API
@@ -54,7 +54,7 @@ These were open questions in the PRD. They are now closed.
 - **Encryption:** App-level AES-256-GCM using a `ENCRYPTION_KEY` env var (32-byte hex). Implement helpers in `lib/crypto/`. Do not use Supabase Vault or pgsodium for the MVP — both add operational complexity.
 - **Email verification:** Required before dashboard access. Reduces spam signups.
 - **Project name:** Working title `OutreachForge` until told otherwise. Do not invent a different name.
-- **Trial credit:** No platform-funded trial credit in MVP. Users must add their Anthropic key before they can run research or drafting. The trial limits the number of leads they can process, not who pays for the tokens.
+- **LLM billing model:** Platform key (not BYOK). OutreachForge pays Anthropic; subscription pricing covers this cost. Users never touch an API key. Usage caps enforce cost control per plan.
 
 ## Folder structure (canonical)
 

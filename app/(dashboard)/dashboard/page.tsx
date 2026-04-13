@@ -13,7 +13,7 @@ export default function DashboardPage() {
             Manage your outbound campaigns
           </p>
         </div>
-        <Button render={<Link href="/campaigns/new" />}>
+        <Button nativeButton={false} render={<Link href="/campaigns/new" />}>
           <PlusCircle className="mr-2 h-4 w-4" />
           New campaign
         </Button>
@@ -29,7 +29,7 @@ export default function DashboardPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex justify-center">
-          <Button render={<Link href="/campaigns/new" />}>
+          <Button nativeButton={false} render={<Link href="/campaigns/new" />}>
             <PlusCircle className="mr-2 h-4 w-4" />
             Create your first campaign
           </Button>

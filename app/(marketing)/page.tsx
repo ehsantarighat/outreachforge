@@ -98,10 +98,10 @@ export default function HomePage() {
               and your own Gmail.
             </p>
             <div className="mt-10 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Button size="lg" render={<Link href="/signup" />}>
+              <Button size="lg" nativeButton={false} render={<Link href="/signup" />}>
                 Start free — 14 days, no card
               </Button>
-              <Button size="lg" variant="outline" render={<Link href="/pricing" />}>
+              <Button size="lg" variant="outline" nativeButton={false} render={<Link href="/pricing" />}>
                 See pricing
               </Button>
             </div>
@@ -190,6 +190,7 @@ export default function HomePage() {
                   <Button
                     className="w-full"
                     variant={tier.highlighted ? "default" : "outline"}
+                    nativeButton={false}
                     render={<Link href="/signup" />}
                   >
                     {tier.cta}
@@ -229,7 +230,7 @@ export default function HomePage() {
           <p className="mt-4 text-muted-foreground">
             Start your 14-day free trial. No card required.
           </p>
-          <Button size="lg" className="mt-8" render={<Link href="/signup" />}>
+          <Button size="lg" className="mt-8" nativeButton={false} render={<Link href="/signup" />}>
             Get started for free
           </Button>
         </div>

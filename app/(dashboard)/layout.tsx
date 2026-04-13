@@ -40,6 +40,7 @@ export default async function DashboardLayout({
                 key={item.href}
                 variant="ghost"
                 size="sm"
+                nativeButton={false}
                 render={<Link href={item.href} />}
               >
                 <item.icon className="h-4 w-4" />

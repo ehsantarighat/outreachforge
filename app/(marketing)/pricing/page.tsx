@@ -84,6 +84,7 @@ export default function PricingPage() {
               <Button
                 className="w-full"
                 variant={tier.highlighted ? "default" : "outline"}
+                nativeButton={false}
                 render={<Link href="/signup" />}
               >
                 {tier.cta}
