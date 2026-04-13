@@ -14,7 +14,7 @@ async function getOrgId() {
     .select("organization_id")
     .eq("user_id", user.id)
     .single();
-  return data?.organization_id ?? null;
+  return (data?.organization_id as string) ?? null;
 }
 
 interface LeadRow {

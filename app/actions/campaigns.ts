@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -19,7 +20,45 @@ async function getOrgId() {
     .eq("user_id", user.id)
     .single();
 
-  return data?.organization_id ?? null;
+  if (data?.organization_id) return data.organization_id as string;
+
+  // No org found — user signed up before the trigger was applied.
+  // Bootstrap org, membership, user_settings, and usage_counters now.
+  const admin = createAdminClient();
+  const workspaceName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    user.email?.split("@")[0] ??
+    "My workspace";
+
+  const { data: org, error: orgErr } = await admin
+    .from("organizations")
+    .insert({
+      name: `${workspaceName}'s workspace`,
+      plan: "trial",
+      trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (orgErr || !org) return null;
+
+  await admin.from("organization_members").insert({
+    organization_id: org.id,
+    user_id: user.id,
+    role: "owner",
+  });
+
+  // Ensure user_settings row exists
+  await admin
+    .from("user_settings")
+    .upsert({ user_id: user.id }, { onConflict: "user_id" });
+
+  await admin.from("usage_counters").insert({
+    organization_id: org.id,
+    period_start: new Date().toISOString().split("T")[0],
+  });
+
+  return org.id as string;
 }
 
 // ─── Create ───────────────────────────────────────────────────────────────────
