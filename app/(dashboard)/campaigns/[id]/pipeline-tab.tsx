@@ -1,17 +1,9 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
+import { useState, useMemo, useTransition, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Table,
   TableBody,
@@ -116,8 +108,8 @@ function LeadRow({
           {lead.full_name}
         </span>
       </TableCell>
-      <TableCell className="text-muted-foreground">{lead.title ?? "—"}</TableCell>
-      <TableCell className="text-muted-foreground">{lead.company_name ?? "—"}</TableCell>
+      <TableCell className="text-muted-foreground text-sm">{lead.title ?? <span className="italic opacity-50">—</span>}</TableCell>
+      <TableCell className="text-muted-foreground text-sm">{lead.company_name ?? <span className="italic opacity-50">—</span>}</TableCell>
       <TableCell>
         <StatusPill status={lead.status} />
       </TableCell>
@@ -141,37 +133,56 @@ function LeadKebab({
   onView: () => void;
   onDelete: () => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [open]);
+
+  const menuItem =
+    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[popup-open]:bg-muted">
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        className="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+      >
         <MoreHorizontal className="h-4 w-4" />
         <span className="sr-only">Lead actions</span>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={onView}>
-          <Eye className="mr-2 h-4 w-4" />
-          View detail
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <FlaskConical className="mr-2 h-4 w-4" />
-          Research
-          <span className="ml-auto text-xs text-muted-foreground">Step 8</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <Sparkles className="mr-2 h-4 w-4" />
-          Draft
-          <span className="ml-auto text-xs text-muted-foreground">Step 9</span>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-red-600 focus:text-red-600"
-          onClick={onDelete}
-        >
-          <Trash2 className="mr-2 h-4 w-4" />
-          Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
+          <button type="button" className={menuItem} onClick={() => { setOpen(false); onView(); }}>
+            <Eye className="h-4 w-4" /> View detail
+          </button>
+          <button type="button" className={menuItem} disabled>
+            <FlaskConical className="h-4 w-4" /> Research
+            <span className="ml-auto text-xs text-muted-foreground">Step 8</span>
+          </button>
+          <button type="button" className={menuItem} disabled>
+            <Sparkles className="h-4 w-4" /> Draft
+            <span className="ml-auto text-xs text-muted-foreground">Step 9</span>
+          </button>
+          <div className="-mx-1 my-1 h-px bg-border" />
+          <button
+            type="button"
+            className={`${menuItem} text-red-600 hover:text-red-600`}
+            onClick={() => { setOpen(false); onDelete(); }}
+          >
+            <Trash2 className="h-4 w-4" /> Delete
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
