@@ -136,10 +136,10 @@ export function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanelProps) {
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent
         side="right"
-        className="w-full sm:w-[90vw] lg:w-[65vw] p-0 overflow-hidden"
+        className="!w-[min(65vw,900px)] !max-w-none p-0 overflow-hidden"
       >
         {lead && (
-          <div className="flex h-full flex-col">
+          <div className="flex flex-1 min-h-0 flex-col">
             {/* Header */}
             <SheetHeader className="px-6 py-4 border-b shrink-0">
               <div className="flex items-start justify-between gap-4">
@@ -180,7 +180,7 @@ export function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanelProps) {
             </SheetHeader>
 
             {/* Body */}
-            <div className="flex flex-1 overflow-hidden divide-x">
+            <div className="flex flex-1 min-h-0 overflow-hidden divide-x">
               {/* Left column — Dossier */}
               <ScrollArea className="flex-1 p-5">
                 <div className="space-y-3">
