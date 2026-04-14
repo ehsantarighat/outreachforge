@@ -29,7 +29,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CheckCheck, RefreshCw } from "lucide-react";
+import { CheckCheck, RefreshCw, Send } from "lucide-react";
 import type { Lead } from "@/app/actions/leads";
 import { refreshLead, updateDossier, updateDrafts, updateLeadStatus } from "@/app/actions/leads";
 import type { DossierSchema } from "@/lib/prompts/research";
@@ -438,6 +438,7 @@ function DraftsPanel({
 }) {
   const [regenDialog, setRegenDialog] = useState<Artifact | null>(null);
   const [regenPending, setRegenPending] = useState(false);
+  const [sendPending, setSendPending] = useState(false);
   const [regenVersion, setRegenVersion] = useState<Record<Artifact, number>>({
     email: 0,
     linkedin_connect: 0,
@@ -486,6 +487,36 @@ function DraftsPanel({
       linkedin_connect: { ...drafts.linkedin_connect, approved: true },
       linkedin_dm: { ...drafts.linkedin_dm, approved: true },
     });
+  }
+
+  async function handleSendEmail() {
+    setSendPending(true);
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: lead.id }),
+      });
+      const data = await res.json() as Record<string, unknown>;
+      if (!res.ok) {
+        if (data.error === "no_gmail") {
+          toast.error("Connect Gmail in Settings before sending.");
+        } else if (data.error === "token_expired") {
+          toast.error("Gmail session expired. Reconnect Gmail in Settings.");
+        } else if (data.error === "no_email") {
+          toast.error("This lead has no email address.");
+        } else {
+          toast.error((data.message as string) ?? "Send failed.");
+        }
+        return;
+      }
+      onLeadUpdated?.({ ...lead, status: "sent", sent_at: new Date().toISOString() });
+      toast.success(`Email sent to ${lead.email ?? "lead"}!`);
+    } catch (err) {
+      toast.error("Send failed: " + String(err));
+    } finally {
+      setSendPending(false);
+    }
   }
 
   async function handleRegenerate(instruction: string) {
@@ -570,6 +601,53 @@ function DraftsPanel({
         onApprove={() => save({ linkedin_dm: { ...drafts!.linkedin_dm, approved: true } })}
         onRegenerate={() => setRegenDialog("linkedin_dm")}
       />
+
+      {/* Send section */}
+      {drafts && (
+        <>
+          <Separator />
+          <div className="space-y-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Send
+            </h4>
+            {lead.status === "sent" ? (
+              <div className="rounded-lg border border-teal-500/30 bg-teal-500/5 px-4 py-3 text-sm text-teal-600 dark:text-teal-400">
+                ✓ Email sent {lead.sent_at ? new Date(lead.sent_at).toLocaleDateString() : ""}
+              </div>
+            ) : (
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">Send email</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {lead.email
+                        ? `Will be sent to ${lead.email}`
+                        : "No email address on this lead."}
+                    </p>
+                    {!drafts.email.approved && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Approve the email draft first.
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={!drafts.email.approved || !lead.email || sendPending}
+                    onClick={handleSendEmail}
+                  >
+                    {sendPending ? (
+                      <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-3.5 w-3.5" />
+                    )}
+                    Send email
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       <RegenerateDialog
         open={regenDialog !== null && !regenPending}
