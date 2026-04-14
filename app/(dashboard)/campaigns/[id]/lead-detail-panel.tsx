@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { refreshLead } from "@/app/actions/leads";
 import {
   Sheet,
@@ -158,6 +159,9 @@ export function LeadDetailPanel({ lead, open, onClose, onLeadUpdated, onResearch
       if (updated && updated.status !== "new") {
         setResearchPending(false);
         onLeadUpdated?.(updated);
+        toast.success(`Research complete for ${updated.full_name}`, {
+          description: "Status updated to Researched. Dossier will be filled in Step 8.",
+        });
       } else {
         pollRef.current = setTimeout(poll, 2000);
       }
@@ -273,6 +277,13 @@ export function LeadDetailPanel({ lead, open, onClose, onLeadUpdated, onResearch
                         </p>
                       </CollapsibleSection>
                     </>
+                  ) : lead.status === "researched" ? (
+                    <div className="rounded-lg border border-dashed bg-blue-500/5 py-10 text-center text-sm text-blue-600 dark:text-blue-400">
+                      <p className="font-medium">Research queued ✓</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Full dossier generation is wired in Step 8.
+                      </p>
+                    </div>
                   ) : (
                     <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
                       No dossier yet. Click <strong>Run research</strong> to
