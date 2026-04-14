@@ -34,9 +34,11 @@ import {
   FlaskConical,
   Sparkles,
   Eye,
+  RefreshCw,
 } from "lucide-react";
 import type { Lead } from "@/app/actions/leads";
-import { deleteLead } from "@/app/actions/leads";
+import { deleteLead, refreshLead } from "@/app/actions/leads";
+import { toast } from "sonner";
 import { LeadDetailPanel } from "./lead-detail-panel";
 
 // ─── Shared status config ─────────────────────────────────────────────────────
@@ -332,6 +334,7 @@ export function PipelineTab({
   const [panelOpen, setPanelOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
   const [runningLeads, setRunningLeads] = useState<Set<string>>(new Set());
+  const [syncingReplies, setSyncingReplies] = useState(false);
   const [, startTransition] = useTransition();
 
   function handleLeadUpdated(updated: Lead) {
@@ -346,6 +349,37 @@ export function PipelineTab({
 
   function handleResearchStarted(leadId: string) {
     setRunningLeads((prev) => new Set(prev).add(leadId));
+  }
+
+  async function handleSyncReplies() {
+    setSyncingReplies(true);
+    try {
+      const res = await fetch("/api/poll-replies", { method: "POST" });
+      const data = await res.json() as { checked?: number; replied?: number; error?: string; message?: string };
+      if (!res.ok) {
+        toast.error(data.message ?? data.error ?? "Sync failed");
+        return;
+      }
+      const { checked = 0, replied = 0 } = data;
+      if (replied > 0) {
+        // Refresh updated leads from the server
+        const updatedLeads = await Promise.all(
+          leads
+            .filter((l) => l.status === "sent")
+            .map((l) => refreshLead(l.id))
+        );
+        updatedLeads.forEach((updated) => {
+          if (updated) handleLeadUpdated(updated);
+        });
+        toast.success(`${replied} lead${replied > 1 ? "s" : ""} moved to Replied`);
+      } else {
+        toast.info(`Checked ${checked} thread${checked !== 1 ? "s" : ""} — no new replies`);
+      }
+    } catch {
+      toast.error("Sync failed — check your connection");
+    } finally {
+      setSyncingReplies(false);
+    }
   }
 
   const filtered = useMemo(() => {
@@ -412,6 +446,16 @@ export function PipelineTab({
             />
           </div>
           <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSyncReplies}
+              disabled={syncingReplies}
+              title="Check Gmail threads for new replies"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${syncingReplies ? "animate-spin" : ""}`} />
+              Sync replies
+            </Button>
             <Button
               nativeButton={false}
               render={<Link href={`/campaigns/${campaignId}/leads/new`} />}
