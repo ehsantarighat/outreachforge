@@ -21,8 +21,17 @@ import {
   Sparkles,
   Link2,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { CheckCheck, RefreshCw } from "lucide-react";
 import type { Lead } from "@/app/actions/leads";
-import { refreshLead, updateDossier, updateDrafts } from "@/app/actions/leads";
+import { refreshLead, updateDossier, updateDrafts, updateLeadStatus } from "@/app/actions/leads";
 import type { DossierSchema } from "@/lib/prompts/research";
 import type { DraftsSchema } from "@/lib/prompts/draft";
 
@@ -251,6 +260,62 @@ function DossierPanel({
   );
 }
 
+// ─── Regenerate dialog ────────────────────────────────────────────────────────
+
+type Artifact = "email" | "linkedin_connect" | "linkedin_dm";
+
+function RegenerateDialog({
+  open,
+  artifact,
+  onClose,
+  onRegenerate,
+}: {
+  open: boolean;
+  artifact: Artifact | null;
+  onClose: () => void;
+  onRegenerate: (instruction: string) => void;
+}) {
+  const [instruction, setInstruction] = useState("");
+  const [pending, setPending] = useState(false);
+
+  async function handle() {
+    setPending(true);
+    await onRegenerate(instruction);
+    setPending(false);
+    setInstruction("");
+    onClose();
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Regenerate {artifact === "email" ? "email" : artifact === "linkedin_connect" ? "connection note" : "LinkedIn DM"}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <p className="text-sm text-muted-foreground">
+            Optional: give Claude a specific instruction for this regeneration.
+          </p>
+          <Input
+            placeholder='e.g. "make it shorter" or "change the angle"'
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handle(); }}
+            autoFocus
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={onClose} disabled={pending}>Cancel</Button>
+          <Button onClick={handle} disabled={pending}>
+            {pending ? <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="mr-2 h-3.5 w-3.5" />}
+            Regenerate
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Draft card ───────────────────────────────────────────────────────────────
 
 function DraftCard({
@@ -262,6 +327,7 @@ function DraftCard({
   onSave,
   onSaveSubject,
   onApprove,
+  onRegenerate,
 }: {
   title: string;
   charLimit?: number;
@@ -271,9 +337,13 @@ function DraftCard({
   onSave?: (v: string) => void;
   onSaveSubject?: (v: string) => void;
   onApprove?: () => void;
+  onRegenerate?: () => void;
 }) {
   const [localContent, setLocalContent] = useState(content ?? "");
   const [localSubject, setLocalSubject] = useState(subject ?? "");
+
+  // DraftCard is re-keyed from parent when content changes externally,
+  // so local state initialises correctly on each mount.
 
   const text = localContent;
   const overLimit = charLimit && text.length > charLimit;
@@ -290,7 +360,7 @@ function DraftCard({
             </span>
           )}
           {text && (
-            <span className={`text-xs ${overLimit ? "text-red-500" : "text-muted-foreground"}`}>
+            <span className={`text-xs ${overLimit ? "text-red-500 font-medium" : "text-muted-foreground"}`}>
               {text.length}{charLimit ? `/${charLimit}` : ""} chars
             </span>
           )}
@@ -339,6 +409,15 @@ function DraftCard({
         >
           {approved ? "✓ Approved" : "Approve"}
         </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={isEmpty}
+          onClick={onRegenerate}
+        >
+          <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+          Regenerate
+        </Button>
       </div>
     </div>
   );
@@ -357,39 +436,112 @@ function DraftsPanel({
   onGenerateDrafts: () => void;
   onLeadUpdated?: (l: Lead) => void;
 }) {
+  const [regenDialog, setRegenDialog] = useState<Artifact | null>(null);
+  const [regenPending, setRegenPending] = useState(false);
+  const [regenVersion, setRegenVersion] = useState<Record<Artifact, number>>({
+    email: 0,
+    linkedin_connect: 0,
+    linkedin_dm: 0,
+  });
   const drafts = (lead.drafts as DraftsSchema | null) ?? null;
 
+  const allApproved =
+    drafts?.email.approved &&
+    drafts?.linkedin_connect.approved &&
+    drafts?.linkedin_dm.approved;
+
   const save = useCallback(
-    async (patch: Partial<DraftsSchema>) => {
+    async (patch: Partial<DraftsSchema>, newStatus?: string) => {
       if (!drafts) return;
       const next = { ...drafts, ...patch };
       const res = await updateDrafts(lead.id, next as Record<string, unknown>);
-      if (res.error) toast.error("Save failed: " + res.error);
-      else onLeadUpdated?.({ ...lead, drafts: next });
+      if (res.error) { toast.error("Save failed: " + res.error); return; }
+
+      let updatedLead: Lead = { ...lead, drafts: next };
+
+      // Transition status to 'approved' when all three are approved
+      const nowApproved =
+        next.email.approved &&
+        next.linkedin_connect.approved &&
+        next.linkedin_dm.approved;
+
+      if (nowApproved && lead.status !== "approved") {
+        await updateLeadStatus(lead.id, "approved");
+        updatedLead = { ...updatedLead, status: "approved" };
+        toast.success("All drafts approved — lead marked approved");
+      } else if (newStatus) {
+        await updateLeadStatus(lead.id, newStatus);
+        updatedLead = { ...updatedLead, status: newStatus };
+      }
+
+      onLeadUpdated?.(updatedLead);
     },
     [drafts, lead, onLeadUpdated]
   );
+
+  async function handleApproveAll() {
+    if (!drafts) return;
+    await save({
+      email: { ...drafts.email, approved: true },
+      linkedin_connect: { ...drafts.linkedin_connect, approved: true },
+      linkedin_dm: { ...drafts.linkedin_dm, approved: true },
+    });
+  }
+
+  async function handleRegenerate(instruction: string) {
+    if (!regenDialog) return;
+    setRegenPending(true);
+    try {
+      const res = await fetch("/api/draft/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId: lead.id, artifact: regenDialog, instruction }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+        toast.error("Regeneration failed: " + (body.error ?? "unknown error"));
+        return;
+      }
+      const data = await res.json() as { drafts: Record<string, unknown> };
+      onLeadUpdated?.({ ...lead, drafts: data.drafts });
+      setRegenVersion((prev) => ({ ...prev, [regenDialog!]: prev[regenDialog!] + 1 }));
+      toast.success("Draft regenerated");
+    } catch (err) {
+      toast.error("Regeneration failed: " + String(err));
+    } finally {
+      setRegenPending(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold">Drafts</h3>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!lead.dossier || draftPending}
-          onClick={onGenerateDrafts}
-        >
-          {draftPending ? (
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Sparkles className="mr-2 h-3.5 w-3.5" />
+        <div className="flex items-center gap-2">
+          {drafts && !allApproved && (
+            <Button size="sm" variant="outline" onClick={handleApproveAll}>
+              <CheckCheck className="mr-1.5 h-3.5 w-3.5" />
+              Approve all
+            </Button>
           )}
-          {drafts ? "Regenerate drafts" : "Generate drafts"}
-        </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!lead.dossier || draftPending}
+            onClick={onGenerateDrafts}
+          >
+            {draftPending ? (
+              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="mr-2 h-3.5 w-3.5" />
+            )}
+            {drafts ? "Regenerate all" : "Generate drafts"}
+          </Button>
+        </div>
       </div>
 
       <DraftCard
+        key={`email-${regenVersion.email}`}
         title="Email"
         content={drafts?.email.body}
         subject={drafts?.email.subject}
@@ -397,21 +549,33 @@ function DraftsPanel({
         onSave={(v) => save({ email: { ...drafts!.email, body: v } })}
         onSaveSubject={(v) => save({ email: { ...drafts!.email, subject: v } })}
         onApprove={() => save({ email: { ...drafts!.email, approved: true } })}
+        onRegenerate={() => setRegenDialog("email")}
       />
       <DraftCard
+        key={`linkedin_connect-${regenVersion.linkedin_connect}`}
         title="LinkedIn connection note"
         charLimit={300}
         content={drafts?.linkedin_connect.note}
         approved={drafts?.linkedin_connect.approved}
         onSave={(v) => save({ linkedin_connect: { ...drafts!.linkedin_connect, note: v } })}
         onApprove={() => save({ linkedin_connect: { ...drafts!.linkedin_connect, approved: true } })}
+        onRegenerate={() => setRegenDialog("linkedin_connect")}
       />
       <DraftCard
+        key={`linkedin_dm-${regenVersion.linkedin_dm}`}
         title="LinkedIn DM"
         content={drafts?.linkedin_dm.message}
         approved={drafts?.linkedin_dm.approved}
         onSave={(v) => save({ linkedin_dm: { ...drafts!.linkedin_dm, message: v } })}
         onApprove={() => save({ linkedin_dm: { ...drafts!.linkedin_dm, approved: true } })}
+        onRegenerate={() => setRegenDialog("linkedin_dm")}
+      />
+
+      <RegenerateDialog
+        open={regenDialog !== null && !regenPending}
+        artifact={regenDialog}
+        onClose={() => setRegenDialog(null)}
+        onRegenerate={handleRegenerate}
       />
     </div>
   );

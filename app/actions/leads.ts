@@ -186,6 +186,18 @@ export async function updateDossier(
   return { success: true };
 }
 
+// ─── Update lead status ───────────────────────────────────────────────────────
+
+export async function updateLeadStatus(leadId: string, status: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("leads")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", leadId);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 // ─── Update drafts ────────────────────────────────────────────────────────────
 
 export async function updateDrafts(
