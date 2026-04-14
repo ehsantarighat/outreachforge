@@ -24,11 +24,13 @@ function TripleInputs({
   label,
   name,
   values,
+  setValues,
   placeholders,
 }: {
   label: string;
   name: string;
   values: string[];
+  setValues: (v: string[]) => void;
   placeholders: string[];
 }) {
   return (
@@ -39,7 +41,12 @@ function TripleInputs({
           <Input
             key={i}
             name={`${name}_${i}`}
-            defaultValue={values[i] ?? ""}
+            value={values[i] ?? ""}
+            onChange={(e) => {
+              const next = [...values];
+              next[i] = e.target.value;
+              setValues(next);
+            }}
             placeholder={placeholders[i]}
           />
         ))}
@@ -56,6 +63,16 @@ export function BriefTab({
   brief: Record<string, unknown>;
 }) {
   const b = brief as Brief;
+
+  const [productName, setProductName] = useState(b.product_name ?? "");
+  const [productOneliner, setProductOneliner] = useState(b.product_oneliner ?? "");
+  const [problemStatement, setProblemStatement] = useState(b.problem_statement ?? "");
+  const [targetIcp, setTargetIcp] = useState(b.target_icp ?? "");
+  const [valueProps, setValueProps] = useState<string[]>(b.value_props ?? []);
+  const [proofPoints, setProofPoints] = useState<string[]>(b.proof_points ?? []);
+  const [toneDos, setToneDos] = useState<string[]>(b.tone_dos ?? []);
+  const [toneDonts, setToneDonts] = useState<string[]>(b.tone_donts ?? []);
+
   const [isPending, startTransition] = useTransition();
   const [result, setResult] = useState<{ success?: boolean; error?: string } | null>(null);
 
@@ -91,7 +108,8 @@ export function BriefTab({
               <Input
                 id="product_name"
                 name="product_name"
-                defaultValue={b.product_name ?? ""}
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
                 placeholder="e.g. OutreachForge"
               />
             </div>
@@ -100,7 +118,8 @@ export function BriefTab({
               <Input
                 id="product_oneliner"
                 name="product_oneliner"
-                defaultValue={b.product_oneliner ?? ""}
+                value={productOneliner}
+                onChange={(e) => setProductOneliner(e.target.value)}
                 placeholder="AI-powered outbound for emerging market founders"
               />
             </div>
@@ -109,7 +128,8 @@ export function BriefTab({
               <Textarea
                 id="problem_statement"
                 name="problem_statement"
-                defaultValue={b.problem_statement ?? ""}
+                value={problemStatement}
+                onChange={(e) => setProblemStatement(e.target.value)}
                 placeholder="Founders selling B2B in CIS/MENA can't get quality outbound because Apollo has no data and AI drafts sound like a tourist wrote them."
                 rows={3}
               />
@@ -126,7 +146,8 @@ export function BriefTab({
               <Textarea
                 id="target_icp"
                 name="target_icp"
-                defaultValue={b.target_icp ?? ""}
+                value={targetIcp}
+                onChange={(e) => setTargetIcp(e.target.value)}
                 placeholder="B2B SaaS founders and growth leads at 10-100 person companies in Central Asia and the Gulf. Selling to mid-market businesses."
                 rows={3}
               />
@@ -141,7 +162,8 @@ export function BriefTab({
             <TripleInputs
               label="Value propositions (3)"
               name="value_props"
-              values={b.value_props ?? []}
+              values={valueProps}
+              setValues={setValueProps}
               placeholders={[
                 "Research that actually covers CIS/MENA companies",
                 "Drafts that sound like you, not ChatGPT",
@@ -151,7 +173,8 @@ export function BriefTab({
             <TripleInputs
               label="Proof points (3)"
               name="proof_points"
-              values={b.proof_points ?? []}
+              values={proofPoints}
+              setValues={setProofPoints}
               placeholders={[
                 "Used by 50+ founders in Kazakhstan and UAE",
                 "Average reply rate 12% vs 3% industry average",
@@ -168,7 +191,8 @@ export function BriefTab({
             <TripleInputs
               label="Do's (3)"
               name="tone_dos"
-              values={b.tone_dos ?? []}
+              values={toneDos}
+              setValues={setToneDos}
               placeholders={[
                 "Be direct and specific — reference something real",
                 "Write like a founder, not a salesperson",
@@ -178,7 +202,8 @@ export function BriefTab({
             <TripleInputs
               label="Don'ts (3)"
               name="tone_donts"
-              values={b.tone_donts ?? []}
+              values={toneDonts}
+              setValues={setToneDonts}
               placeholders={[
                 "No 'I hope this email finds you well'",
                 "No generic openers about coming across their profile",
