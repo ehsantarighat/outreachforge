@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { loadCampaign } from "@/app/actions/campaigns";
 import { loadLeads } from "@/app/actions/leads";
+import { loadCampaignMembers, getMyRole } from "@/app/actions/campaign-members";
+import { createClient } from "@/lib/supabase/server";
 import { CampaignTabs } from "./campaign-tabs";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -12,9 +14,14 @@ export default async function CampaignPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [campaign, leads] = await Promise.all([
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const [campaign, leads, members, myRole] = await Promise.all([
     loadCampaign(id),
     loadLeads(id),
+    loadCampaignMembers(id),
+    getMyRole(id),
   ]);
 
   if (!campaign) notFound();
@@ -37,7 +44,13 @@ export default async function CampaignPage({
         </div>
       </div>
 
-      <CampaignTabs campaign={campaign} initialLeads={leads} />
+      <CampaignTabs
+        campaign={campaign}
+        initialLeads={leads}
+        members={members}
+        myRole={myRole}
+        currentUserId={user?.id ?? ""}
+      />
     </div>
   );
 }

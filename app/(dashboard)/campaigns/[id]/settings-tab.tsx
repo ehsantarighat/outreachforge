@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { renameCampaign, archiveCampaign, deleteCampaign } from "@/app/actions/campaigns";
 import { Loader2 } from "lucide-react";
+import { MembersCard } from "./members-card";
+import type { CampaignMember, MemberRole } from "@/app/actions/campaign-members";
 
 interface Campaign {
   id: string;
@@ -25,7 +27,17 @@ interface Campaign {
   status: string;
 }
 
-export function SettingsTab({ campaign }: { campaign: Campaign }) {
+export function SettingsTab({
+  campaign,
+  members,
+  myRole,
+  currentUserId,
+}: {
+  campaign: Campaign;
+  members: CampaignMember[];
+  myRole: MemberRole | null;
+  currentUserId: string;
+}) {
   const [isRenaming, startRename] = useTransition();
   const [isArchiving, startArchive] = useTransition();
   const [isDeleting, startDelete] = useTransition();
@@ -42,7 +54,7 @@ export function SettingsTab({ campaign }: { campaign: Campaign }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-2xl">
       {/* Rename */}
       <Card>
         <CardHeader>
@@ -73,67 +85,77 @@ export function SettingsTab({ campaign }: { campaign: Campaign }) {
         </CardContent>
       </Card>
 
-      {/* Danger zone */}
-      <Card className="border-destructive/40">
-        <CardHeader>
-          <CardTitle className="text-base text-destructive">Danger zone</CardTitle>
-          <CardDescription>
-            These actions are permanent or hard to reverse.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row">
-          {campaign.status !== "archived" && (
+      {/* Team members */}
+      <MembersCard
+        campaignId={campaign.id}
+        initialMembers={members}
+        myRole={myRole}
+        currentUserId={currentUserId}
+      />
+
+      {/* Danger zone — owners only */}
+      {myRole === "owner" && (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-base text-destructive">Danger zone</CardTitle>
+            <CardDescription>
+              These actions are permanent or hard to reverse.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3 sm:flex-row">
+            {campaign.status !== "archived" && (
+              <AlertDialog>
+                <AlertDialogTrigger render={<Button variant="outline" disabled={isArchiving} />}>
+                  {isArchiving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Archive campaign
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Archive campaign?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      The campaign will be hidden from the dashboard. All leads and
+                      data are kept. You can restore it later.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => { startArchive(async () => { await archiveCampaign(campaign.id); }); }}
+                    >
+                      Archive
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+
             <AlertDialog>
-              <AlertDialogTrigger render={<Button variant="outline" disabled={isArchiving} />}>
-                {isArchiving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Archive campaign
+              <AlertDialogTrigger render={<Button variant="destructive" disabled={isDeleting} />}>
+                {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Delete campaign
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Archive campaign?</AlertDialogTitle>
+                  <AlertDialogTitle>Delete campaign?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    The campaign will be hidden from the dashboard. All leads and
-                    data are kept. You can restore it later.
+                    This will permanently delete &ldquo;{campaign.name}&rdquo; and
+                    all its leads, dossiers, and drafts. This cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
-                    onClick={() => { startArchive(async () => { await archiveCampaign(campaign.id); }); }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => { startDelete(async () => { await deleteCampaign(campaign.id); }); }}
                   >
-                    Archive
+                    Delete permanently
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
-          )}
-
-          <AlertDialog>
-            <AlertDialogTrigger render={<Button variant="destructive" disabled={isDeleting} />}>
-              {isDeleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Delete campaign
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete campaign?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete &ldquo;{campaign.name}&rdquo; and
-                  all its leads, dossiers, and drafts. This cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  onClick={() => { startDelete(async () => { await deleteCampaign(campaign.id); }); }}
-                >
-                  Delete permanently
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

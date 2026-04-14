@@ -5,6 +5,7 @@ import { BriefTab } from "./brief-tab";
 import { SettingsTab } from "./settings-tab";
 import { PipelineTab } from "./pipeline-tab";
 import type { Lead } from "@/app/actions/leads";
+import type { CampaignMember, MemberRole } from "@/app/actions/campaign-members";
 
 interface Campaign {
   id: string;
@@ -17,9 +18,15 @@ interface Campaign {
 export function CampaignTabs({
   campaign,
   initialLeads,
+  members,
+  myRole,
+  currentUserId,
 }: {
   campaign: Campaign;
   initialLeads: Lead[];
+  members: CampaignMember[];
+  myRole: MemberRole | null;
+  currentUserId: string;
 }) {
   return (
     <Tabs defaultValue="pipeline">
@@ -38,7 +45,12 @@ export function CampaignTabs({
       </TabsContent>
 
       <TabsContent value="settings">
-        <SettingsTab campaign={campaign} />
+        <SettingsTab
+          campaign={campaign}
+          members={members}
+          myRole={myRole}
+          currentUserId={currentUserId}
+        />
       </TabsContent>
     </Tabs>
   );
