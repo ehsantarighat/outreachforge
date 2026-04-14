@@ -92,11 +92,13 @@ function LeadRow({
   running,
   onView,
   onDelete,
+  onResearch,
 }: {
   lead: Lead;
   running: boolean;
   onView: () => void;
   onDelete: () => void;
+  onResearch: () => void;
 }) {
   return (
     <TableRow
@@ -121,7 +123,7 @@ function LeadRow({
         onClick={(e) => e.stopPropagation()}
         className="w-10 text-right"
       >
-        <LeadKebab onView={onView} onDelete={onDelete} />
+        <LeadKebab onView={onView} onDelete={onDelete} onResearch={onResearch} />
       </TableCell>
     </TableRow>
   );
@@ -130,9 +132,11 @@ function LeadRow({
 function LeadKebab({
   onView,
   onDelete,
+  onResearch,
 }: {
   onView: () => void;
   onDelete: () => void;
+  onResearch: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
@@ -189,9 +193,8 @@ function LeadKebab({
           <button type="button" className={item} onClick={() => { setOpen(false); onView(); }}>
             <Eye className="h-4 w-4" /> View detail
           </button>
-          <button type="button" className={item} disabled>
+          <button type="button" className={item} onClick={() => { setOpen(false); onResearch(); }}>
             <FlaskConical className="h-4 w-4" /> Research
-            <span className="ml-auto text-xs text-muted-foreground">Step 8</span>
           </button>
           <button type="button" className={item} disabled>
             <Sparkles className="h-4 w-4" /> Draft
@@ -263,6 +266,7 @@ function KanbanColumn({
                 <LeadKebab
                   onView={() => onView(lead)}
                   onDelete={() => onDelete(lead)}
+                  onResearch={() => onView(lead)}
                 />
               </div>
             </div>
@@ -475,6 +479,7 @@ export function PipelineTab({
                     running={runningLeads.has(lead.id)}
                     onView={() => openDetail(lead)}
                     onDelete={() => confirmDelete(lead)}
+                    onResearch={() => { openDetail(lead); }}
                   />
                 ))
               )}

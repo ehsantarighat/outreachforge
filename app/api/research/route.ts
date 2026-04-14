@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { runResearchPipeline } from "@/lib/research/pipeline";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -16,15 +16,12 @@ export async function POST(req: NextRequest) {
   // Verify lead belongs to user's org (RLS enforces this)
   const { data: lead } = await supabase
     .from("leads")
-    .select("id, organization_id")
+    .select("id")
     .eq("id", leadId)
     .maybeSingle();
   if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
 
-  const orgId = lead.organization_id as string;
-
-  // Try Inngest first (works when dev server is running or in production).
-  // If unavailable, fall back to a direct background update via after().
+  // Try Inngest first (works when dev server or production cloud is configured)
   let inngestSent = false;
   try {
     const { inngest } = await import("@/inngest/client");
@@ -34,24 +31,17 @@ export async function POST(req: NextRequest) {
     });
     inngestSent = true;
   } catch {
-    // Inngest dev server not running — use fallback below
+    // Inngest not available — fall back to direct execution
   }
 
   if (!inngestSent) {
-    // Fallback: simulate the placeholder job via after()
+    // Fallback: run the real research pipeline in the background via after()
     after(async () => {
-      await new Promise((r) => setTimeout(r, 2000));
-      const admin = createAdminClient();
-      await admin
-        .from("leads")
-        .update({ status: "researched", updated_at: new Date().toISOString() })
-        .eq("id", leadId);
-      await admin.from("activity_log").insert({
-        lead_id: leadId,
-        organization_id: orgId,
-        event_type: "researched",
-        metadata: { note: "Research completed (placeholder)." },
-      });
+      try {
+        await runResearchPipeline(leadId);
+      } catch (err) {
+        console.error("[research] pipeline failed for lead", leadId, err);
+      }
     });
   }
 

@@ -171,6 +171,21 @@ export async function loadLeads(campaignId: string): Promise<Lead[]> {
   return (data ?? []) as Lead[];
 }
 
+// ─── Update dossier ───────────────────────────────────────────────────────────
+
+export async function updateDossier(
+  leadId: string,
+  dossier: Record<string, unknown>
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("leads")
+    .update({ dossier, updated_at: new Date().toISOString() })
+    .eq("id", leadId);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 // ─── Refresh single lead ──────────────────────────────────────────────────────
 
 export async function refreshLead(leadId: string): Promise<Lead | null> {

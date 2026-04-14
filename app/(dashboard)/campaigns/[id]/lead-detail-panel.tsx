@@ -1,18 +1,17 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
-import { refreshLead } from "@/app/actions/leads";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
 import {
   ChevronDown,
   ExternalLink,
@@ -23,6 +22,10 @@ import {
   Link2,
 } from "lucide-react";
 import type { Lead } from "@/app/actions/leads";
+import { refreshLead, updateDossier } from "@/app/actions/leads";
+import type { DossierSchema } from "@/lib/prompts/research";
+
+// ─── Status ───────────────────────────────────────────────────────────────────
 
 const STATUS_COLORS: Record<string, string> = {
   new: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400",
@@ -46,18 +49,20 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function CollapsibleSection({
+// ─── Collapsible section ──────────────────────────────────────────────────────
+
+function Section({
   title,
-  children,
   defaultOpen = false,
+  children,
 }: {
   title: string;
-  children: React.ReactNode;
   defaultOpen?: boolean;
+  children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="rounded-lg border overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -68,14 +73,184 @@ function CollapsibleSection({
           className={`h-4 w-4 transition-transform text-muted-foreground ${open ? "rotate-180" : ""}`}
         />
       </button>
-      {open && (
-        <div className="px-4 py-3 border-t text-sm text-muted-foreground">
-          {children}
-        </div>
-      )}
+      {open && <div className="px-4 py-3 border-t text-sm">{children}</div>}
     </div>
   );
 }
+
+// ─── Inline editable field ────────────────────────────────────────────────────
+
+function EditableText({
+  value,
+  onSave,
+  rows = 3,
+  placeholder,
+}: {
+  value: string;
+  onSave: (v: string) => void;
+  rows?: number;
+  placeholder?: string;
+}) {
+  const [local, setLocal] = useState(value);
+
+  return (
+    <Textarea
+      value={local}
+      onChange={(e) => setLocal(e.target.value)}
+      onBlur={() => { if (local !== value) onSave(local); }}
+      rows={rows}
+      placeholder={placeholder}
+      className="text-sm resize-none border-transparent bg-transparent focus:border-input focus:bg-background transition-colors"
+    />
+  );
+}
+
+// ─── Fit score badge ──────────────────────────────────────────────────────────
+
+function FitScore({ score }: { score: number }) {
+  const color =
+    score >= 4 ? "text-green-600" : score >= 3 ? "text-yellow-600" : "text-red-500";
+  return (
+    <span className={`text-2xl font-bold ${color}`}>
+      {score}<span className="text-base font-normal text-muted-foreground">/5</span>
+    </span>
+  );
+}
+
+// ─── Dossier panel ────────────────────────────────────────────────────────────
+
+function DossierPanel({
+  lead,
+  onLeadUpdated,
+}: {
+  lead: Lead;
+  onLeadUpdated?: (l: Lead) => void;
+}) {
+  const dossier = (lead.dossier as DossierSchema | null) ?? null;
+
+  const save = useCallback(
+    async (patch: Partial<DossierSchema>) => {
+      if (!dossier) return;
+      const next = { ...dossier, ...patch };
+      const res = await updateDossier(lead.id, next as Record<string, unknown>);
+      if (res.error) toast.error("Save failed: " + res.error);
+      else onLeadUpdated?.({ ...lead, dossier: next });
+    },
+    [dossier, lead, onLeadUpdated]
+  );
+
+  if (!dossier) {
+    if (lead.status === "researched") {
+      return (
+        <div className="rounded-lg border border-dashed bg-blue-500/5 py-10 text-center text-sm text-blue-600 dark:text-blue-400">
+          <p className="font-medium">Research complete ✓</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Reopen the panel — dossier should appear shortly.
+          </p>
+        </div>
+      );
+    }
+    return (
+      <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+        No dossier yet. Click <strong>Run research</strong> to generate one.
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {/* Fit score */}
+      <div className="rounded-lg border p-4 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+            Fit score
+          </p>
+          <FitScore score={dossier.fit_score} />
+        </div>
+        <div className="text-xs text-muted-foreground max-w-[60%] text-right leading-relaxed">
+          {dossier.fit_reasoning}
+        </div>
+        <span className={`ml-3 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+          dossier.research_quality === "rich"
+            ? "bg-green-500/15 text-green-600"
+            : dossier.research_quality === "adequate"
+            ? "bg-yellow-500/15 text-yellow-600"
+            : "bg-red-500/15 text-red-600"
+        }`}>
+          {dossier.research_quality}
+        </span>
+      </div>
+
+      <Section title="Company summary" defaultOpen>
+        <EditableText
+          value={dossier.company_summary}
+          onSave={(v) => save({ company_summary: v })}
+          placeholder="Company summary…"
+        />
+      </Section>
+
+      <Section title="Role summary" defaultOpen>
+        <EditableText
+          value={dossier.role_summary}
+          onSave={(v) => save({ role_summary: v })}
+          placeholder="Role summary…"
+        />
+      </Section>
+
+      <Section title="Pain hypothesis" defaultOpen>
+        <EditableText
+          value={dossier.pain_hypothesis}
+          onSave={(v) => save({ pain_hypothesis: v })}
+          placeholder="Pain hypothesis…"
+        />
+      </Section>
+
+      <Section title={`Signals (${dossier.signals.length})`}>
+        <EditableText
+          value={dossier.signals.join("\n")}
+          onSave={(v) =>
+            save({ signals: v.split("\n").filter((s) => s.trim()) })
+          }
+          rows={Math.max(3, dossier.signals.length + 1)}
+          placeholder="One signal per line…"
+        />
+        <p className="mt-1 text-xs text-muted-foreground">One signal per line</p>
+      </Section>
+
+      <Section title={`Hooks (${dossier.hooks.length})`} defaultOpen>
+        <div className="space-y-3">
+          {dossier.hooks.map((h, i) => (
+            <div key={i} className="space-y-1">
+              <p className="text-xs font-medium text-muted-foreground">Hook {i + 1}</p>
+              <EditableText
+                value={h.hook}
+                onSave={(v) => {
+                  const hooks = [...dossier.hooks];
+                  hooks[i] = { ...hooks[i], hook: v };
+                  save({ hooks });
+                }}
+                rows={2}
+                placeholder="Hook idea…"
+              />
+              <EditableText
+                value={h.rationale}
+                onSave={(v) => {
+                  const hooks = [...dossier.hooks];
+                  hooks[i] = { ...hooks[i], rationale: v };
+                  save({ hooks });
+                }}
+                rows={2}
+                placeholder="Why this resonates…"
+              />
+            </div>
+          ))}
+        </div>
+      </Section>
+    </div>
+  );
+}
+
+// ─── Draft card ───────────────────────────────────────────────────────────────
 
 function DraftCard({
   title,
@@ -94,28 +269,23 @@ function DraftCard({
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold">{title}</span>
         {text && (
-          <span
-            className={`text-xs ${overLimit ? "text-red-500" : "text-muted-foreground"}`}
-          >
-            {text.length}
-            {charLimit ? `/${charLimit}` : ""} chars
+          <span className={`text-xs ${overLimit ? "text-red-500" : "text-muted-foreground"}`}>
+            {text.length}{charLimit ? `/${charLimit}` : ""} chars
           </span>
         )}
       </div>
       <div className="min-h-[80px] rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground italic">
-        {text || "No draft yet — click Generate Drafts to create one."}
+        {text || "No draft yet — click Generate drafts to create one."}
       </div>
       <div className="flex gap-2">
-        <Button size="sm" variant="outline" disabled={!text}>
-          Approve
-        </Button>
-        <Button size="sm" variant="ghost" disabled>
-          Regenerate
-        </Button>
+        <Button size="sm" variant="outline" disabled={!text}>Approve</Button>
+        <Button size="sm" variant="ghost" disabled>Regenerate</Button>
       </div>
     </div>
   );
 }
+
+// ─── Main panel ───────────────────────────────────────────────────────────────
 
 interface LeadDetailPanelProps {
   lead: Lead | null;
@@ -125,15 +295,18 @@ interface LeadDetailPanelProps {
   onResearchStarted?: (leadId: string) => void;
 }
 
-export function LeadDetailPanel({ lead, open, onClose, onLeadUpdated, onResearchStarted }: LeadDetailPanelProps) {
+export function LeadDetailPanel({
+  lead,
+  open,
+  onClose,
+  onLeadUpdated,
+  onResearchStarted,
+}: LeadDetailPanelProps) {
   const [researchPending, setResearchPending] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Stop any running poll when panel closes or lead changes
   useEffect(() => {
-    return () => {
-      if (pollRef.current) clearTimeout(pollRef.current);
-    };
+    return () => { if (pollRef.current) clearTimeout(pollRef.current); };
   }, [lead?.id]);
 
   async function handleRunResearch() {
@@ -148,19 +321,21 @@ export function LeadDetailPanel({ lead, open, onClose, onLeadUpdated, onResearch
 
     if (!res.ok) {
       setResearchPending(false);
+      toast.error("Failed to start research. Check the server logs.");
       return;
     }
 
     onResearchStarted?.(lead.id);
 
-    // Poll every 2 s until status changes away from 'new'
     const poll = async () => {
       const updated = await refreshLead(lead.id);
       if (updated && updated.status !== "new") {
         setResearchPending(false);
         onLeadUpdated?.(updated);
         toast.success(`Research complete for ${updated.full_name}`, {
-          description: "Status updated to Researched. Dossier will be filled in Step 8.",
+          description: updated.dossier
+            ? `Fit score: ${(updated.dossier as Record<string, number>).fit_score}/5`
+            : "Dossier ready.",
         });
       } else {
         pollRef.current = setTimeout(poll, 2000);
@@ -168,6 +343,8 @@ export function LeadDetailPanel({ lead, open, onClose, onLeadUpdated, onResearch
     };
     pollRef.current = setTimeout(poll, 2000);
   }
+
+  const drafts = lead?.drafts as Record<string, Record<string, string>> | null;
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -179,46 +356,40 @@ export function LeadDetailPanel({ lead, open, onClose, onLeadUpdated, onResearch
           <div className="flex flex-1 min-h-0 flex-col">
             {/* Header */}
             <SheetHeader className="px-6 py-4 border-b shrink-0">
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-1">
-                  <SheetTitle className="text-xl font-bold leading-tight">
-                    {lead.full_name}
-                  </SheetTitle>
-                  {(lead.title || lead.company_name) && (
-                    <p className="text-sm text-muted-foreground">
-                      {[lead.title, lead.company_name]
-                        .filter(Boolean)
-                        .join(" at ")}
-                    </p>
+              <div className="space-y-1">
+                <SheetTitle className="text-xl font-bold leading-tight">
+                  {lead.full_name}
+                </SheetTitle>
+                {(lead.title || lead.company_name) && (
+                  <p className="text-sm text-muted-foreground">
+                    {[lead.title, lead.company_name].filter(Boolean).join(" at ")}
+                  </p>
+                )}
+                <div className="flex items-center gap-2 pt-1">
+                  <StatusBadge status={lead.status} />
+                  {lead.linkedin_url && (
+                    <a
+                      href={lead.linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Link2 className="h-3 w-3" />LinkedIn
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
                   )}
-                  <div className="flex items-center gap-2 pt-1">
-                    <StatusBadge status={lead.status} />
-                    {lead.linkedin_url && (
-                      <a
-                        href={lead.linkedin_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        <Link2 className="h-3 w-3" />
-                        LinkedIn
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    )}
-                    {lead.email && (
-                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                        <Mail className="h-3 w-3" />
-                        {lead.email}
-                      </span>
-                    )}
-                  </div>
+                  {lead.email && (
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Mail className="h-3 w-3" />{lead.email}
+                    </span>
+                  )}
                 </div>
               </div>
             </SheetHeader>
 
             {/* Body */}
             <div className="flex flex-1 min-h-0 overflow-hidden divide-x">
-              {/* Left column — Dossier */}
+              {/* Left — Dossier */}
               <ScrollArea className="flex-1 p-5">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -238,75 +409,20 @@ export function LeadDetailPanel({ lead, open, onClose, onLeadUpdated, onResearch
                     </Button>
                   </div>
 
-                  {lead.dossier ? (
-                    <>
-                      <CollapsibleSection title="Company summary" defaultOpen>
-                        <p>
-                          {(lead.dossier as Record<string, string>)
-                            .company_summary ?? "—"}
-                        </p>
-                      </CollapsibleSection>
-                      <CollapsibleSection title="Role summary">
-                        <p>
-                          {(lead.dossier as Record<string, string>)
-                            .role_summary ?? "—"}
-                        </p>
-                      </CollapsibleSection>
-                      <CollapsibleSection title="Signals">
-                        <p>
-                          {(lead.dossier as Record<string, string>).signals ??
-                            "—"}
-                        </p>
-                      </CollapsibleSection>
-                      <CollapsibleSection title="Pain hypothesis">
-                        <p>
-                          {(lead.dossier as Record<string, string>)
-                            .pain_hypothesis ?? "—"}
-                        </p>
-                      </CollapsibleSection>
-                      <CollapsibleSection title="Hooks">
-                        <p>
-                          {(lead.dossier as Record<string, string>).hooks ?? "—"}
-                        </p>
-                      </CollapsibleSection>
-                      <CollapsibleSection title="Fit score">
-                        <p>
-                          {(lead.dossier as Record<string, string>).fit_score ??
-                            "—"}
-                          /10
-                        </p>
-                      </CollapsibleSection>
-                    </>
-                  ) : lead.status === "researched" ? (
-                    <div className="rounded-lg border border-dashed bg-blue-500/5 py-10 text-center text-sm text-blue-600 dark:text-blue-400">
-                      <p className="font-medium">Research queued ✓</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Full dossier generation is wired in Step 8.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
-                      No dossier yet. Click <strong>Run research</strong> to
-                      generate one.
-                    </div>
-                  )}
+                  <DossierPanel key={lead.id} lead={lead} onLeadUpdated={onLeadUpdated} />
 
-                  {/* Activity log */}
                   <Separator className="my-4" />
                   <h3 className="text-sm font-semibold">Activity</h3>
                   <div className="text-sm text-muted-foreground space-y-1">
                     <div className="flex items-start gap-2">
-                      <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-muted-foreground/50 shrink-0 mt-1.5" />
-                      <span>
-                        Lead added{" "}
-                        {new Date(lead.created_at).toLocaleDateString()}
-                      </span>
+                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-muted-foreground/50 shrink-0" />
+                      <span>Lead added {new Date(lead.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
                 </div>
               </ScrollArea>
 
-              {/* Right column — Drafts */}
+              {/* Right — Drafts */}
               <ScrollArea className="flex-1 p-5">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -316,27 +432,18 @@ export function LeadDetailPanel({ lead, open, onClose, onLeadUpdated, onResearch
                       Generate drafts
                     </Button>
                   </div>
-
                   <DraftCard
                     title="Email"
-                    content={
-                      (lead.drafts as Record<string, string> | null)?.email
-                    }
+                    content={drafts?.email?.body}
                   />
                   <DraftCard
                     title="LinkedIn connection note"
                     charLimit={300}
-                    content={
-                      (lead.drafts as Record<string, string> | null)
-                        ?.linkedin_connection
-                    }
+                    content={drafts?.linkedin_connect?.note}
                   />
                   <DraftCard
                     title="LinkedIn DM"
-                    content={
-                      (lead.drafts as Record<string, string> | null)
-                        ?.linkedin_dm
-                    }
+                    content={drafts?.linkedin_dm?.message}
                   />
                 </div>
               </ScrollArea>
