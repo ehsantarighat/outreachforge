@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { trackEvent } from "@/lib/posthog/server";
 
 async function getOrgId() {
   const supabase = await createClient();
@@ -86,7 +87,7 @@ export async function addOneLead(campaignId: string, formData: FormData) {
   const full_name = (formData.get("full_name") as string).trim();
   if (!full_name) return { error: "Full name is required", inserted: 0, skipped: 0 };
 
-  return insertLeads(campaignId, orgId, [
+  const result = await insertLeads(campaignId, orgId, [
     {
       full_name,
       title: formData.get("title") as string,
@@ -97,6 +98,12 @@ export async function addOneLead(campaignId: string, formData: FormData) {
       custom_notes: formData.get("custom_notes") as string,
     },
   ]);
+  if (result.inserted > 0) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) trackEvent(user.id, "lead_added", { campaign_id: campaignId, count: result.inserted });
+  }
+  return result;
 }
 
 // ─── Paste URLs ───────────────────────────────────────────────────────────────

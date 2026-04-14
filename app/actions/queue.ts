@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Lead } from "./leads";
+import { trackEvent } from "@/lib/posthog/server";
 
 // ─── Load LinkedIn queue ──────────────────────────────────────────────────────
 // Leads where linkedin_dm is approved and not yet sent
@@ -44,6 +45,8 @@ export async function markLinkedInSent(leadId: string) {
     })
     .eq("id", leadId);
   if (error) return { error: error.message };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) trackEvent(user.id, "linkedin_marked_sent", { lead_id: leadId });
   return { success: true };
 }
 

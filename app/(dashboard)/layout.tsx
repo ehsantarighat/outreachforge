@@ -6,6 +6,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { createClient } from "@/lib/supabase/server";
 import { LayoutDashboard, Settings, CreditCard, List } from "lucide-react";
 import { getQueueCount } from "@/app/actions/queue";
+import { FeedbackWidget } from "@/components/feedback-widget";
 
 export default async function DashboardLayout({
   children,
@@ -87,6 +88,7 @@ export default async function DashboardLayout({
         </div>
       </header>
       <main className="flex-1 px-4 py-8 sm:px-6">{children}</main>
+      <FeedbackWidget />
     </div>
   );
 }

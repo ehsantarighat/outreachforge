@@ -7,6 +7,7 @@ import {
   buildResearchUserPrompt,
   validateDossier,
 } from "@/lib/prompts/research";
+import { trackEvent } from "@/lib/posthog/server";
 
 // ─── Usage caps per plan (enforced properly in Step 14) ───────────────────────
 const PLAN_CAP = 1000; // generous default until billing is wired
@@ -174,8 +175,13 @@ export async function runResearchPipeline(leadId: string): Promise<void> {
     research_quality: dossier.research_quality,
   });
 
-  // 10. Increment usage counter
+  // 10. Increment usage counter + track event
   await incrementUsage(supabase, orgId, today, monthlyCount, sameMonth);
+  trackEvent(orgId, "research_completed", {
+    lead_id: leadId,
+    fit_score: dossier.fit_score,
+    research_quality: dossier.research_quality,
+  });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

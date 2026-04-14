@@ -5,6 +5,7 @@ import {
   buildDraftUserPrompt,
   validateDrafts,
 } from "@/lib/prompts/draft";
+import { trackEvent } from "@/lib/posthog/server";
 
 export async function runDraftPipeline(leadId: string): Promise<void> {
   const supabase = createAdminClient();
@@ -101,8 +102,9 @@ export async function runDraftPipeline(leadId: string): Promise<void> {
     hook_used: drafts.hook_used,
   });
 
-  // 8. Increment usage counter
+  // 8. Increment usage counter + track event
   await incrementDraftsUsage(supabase, orgId);
+  trackEvent(orgId, "draft_generated", { lead_id: leadId });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

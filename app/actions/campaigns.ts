@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { trackEvent } from "@/lib/posthog/server";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -80,6 +81,9 @@ export async function createCampaign(formData: FormData) {
     .single();
 
   if (error) return { error: error.message };
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) trackEvent(user.id, "campaign_created", { campaign_id: data.id });
 
   redirect(`/campaigns/${data.id}`);
 }

@@ -14,11 +14,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, Lock } from "lucide-react";
+
+const INVITE_ONLY = process.env.NEXT_PUBLIC_INVITE_ONLY === "true";
+const VALID_INVITE_CODE = process.env.NEXT_PUBLIC_INVITE_CODE ?? "";
 
 export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -27,6 +31,12 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
+    if (INVITE_ONLY && inviteCode.trim() !== VALID_INVITE_CODE) {
+      setError("Invalid invite code. Request access from the team.");
+      setLoading(false);
+      return;
+    }
 
     const supabase = createClient();
     const { error } = await supabase.auth.signUp({
@@ -57,6 +67,12 @@ export default function SignupPage() {
   async function handleGoogleSignup() {
     setLoading(true);
     setError(null);
+
+    if (INVITE_ONLY && inviteCode.trim() !== VALID_INVITE_CODE) {
+      setError("Invalid invite code. Request access from the team.");
+      setLoading(false);
+      return;
+    }
 
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
@@ -106,10 +122,31 @@ export default function SignupPage() {
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">Create your account</CardTitle>
         <CardDescription>
-          14-day free trial — no card required
+          {INVITE_ONLY
+            ? "Early access — invite code required"
+            : "14-day free trial — no card required"}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {INVITE_ONLY && (
+          <div className="space-y-2">
+            <Label htmlFor="invite-code" className="flex items-center gap-1.5">
+              <Lock className="h-3.5 w-3.5" />
+              Invite code
+            </Label>
+            <Input
+              id="invite-code"
+              type="text"
+              placeholder="Enter your invite code"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              required={INVITE_ONLY}
+              disabled={loading}
+              autoComplete="off"
+            />
+          </div>
+        )}
+
         <Button
           variant="outline"
           className="w-full"

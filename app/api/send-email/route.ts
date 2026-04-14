@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decrypt } from "@/lib/crypto";
 import { sendGmailMessage } from "@/lib/gmail/send";
+import { trackEvent } from "@/lib/posthog/server";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -115,6 +116,8 @@ export async function POST(req: NextRequest) {
   });
 
   await incrementEmailsUsage(adminSupabase, orgId);
+
+  trackEvent(user.id, "email_sent", { lead_id: leadId, organization_id: orgId });
 
   return NextResponse.json({ success: true, threadId });
 }

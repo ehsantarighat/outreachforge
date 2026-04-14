@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { decrypt } from "@/lib/crypto";
 import { hasReply } from "@/lib/gmail/poll";
+import { trackEvent } from "@/lib/posthog/server";
 
 /**
  * POST /api/poll-replies
@@ -87,6 +88,10 @@ export async function POST() {
         metadata: { thread_id: lead.gmail_thread_id },
       });
 
+      trackEvent(user.id, "reply_received", {
+        lead_id: lead.id,
+        organization_id: lead.organization_id,
+      });
       repliedCount++;
     }
   }
