@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useTransition, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,55 +135,80 @@ function LeadKebab({
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function onOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)
+      ) setOpen(false);
     }
+    function onScroll() { setOpen(false); }
     document.addEventListener("mousedown", onOutside);
-    return () => document.removeEventListener("mousedown", onOutside);
+    document.addEventListener("scroll", onScroll, true);
+    return () => {
+      document.removeEventListener("mousedown", onOutside);
+      document.removeEventListener("scroll", onScroll, true);
+    };
   }, [open]);
 
-  const menuItem =
+  function handleClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 4, right: window.innerWidth - r.right });
+    }
+    setOpen((o) => !o);
+  }
+
+  const item =
     "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-50";
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
+        ref={btnRef}
         type="button"
-        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
+        onClick={handleClick}
         className="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
         <MoreHorizontal className="h-4 w-4" />
         <span className="sr-only">Lead actions</span>
       </button>
 
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-48 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md">
-          <button type="button" className={menuItem} onClick={() => { setOpen(false); onView(); }}>
+      {open && typeof document !== "undefined" && createPortal(
+        <div
+          ref={menuRef}
+          style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 9999 }}
+          className="w-48 rounded-lg border bg-popover p-1 text-popover-foreground shadow-md"
+        >
+          <button type="button" className={item} onClick={() => { setOpen(false); onView(); }}>
             <Eye className="h-4 w-4" /> View detail
           </button>
-          <button type="button" className={menuItem} disabled>
+          <button type="button" className={item} disabled>
             <FlaskConical className="h-4 w-4" /> Research
             <span className="ml-auto text-xs text-muted-foreground">Step 8</span>
           </button>
-          <button type="button" className={menuItem} disabled>
+          <button type="button" className={item} disabled>
             <Sparkles className="h-4 w-4" /> Draft
             <span className="ml-auto text-xs text-muted-foreground">Step 9</span>
           </button>
           <div className="-mx-1 my-1 h-px bg-border" />
           <button
             type="button"
-            className={`${menuItem} text-red-600 hover:text-red-600`}
+            className={`${item} text-red-600 hover:text-red-600`}
             onClick={() => { setOpen(false); onDelete(); }}
           >
             <Trash2 className="h-4 w-4" /> Delete
           </button>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   );
 }
 
