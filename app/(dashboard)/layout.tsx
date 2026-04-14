@@ -4,7 +4,7 @@ import { ModeToggle } from "@/components/mode-toggle";
 import { Button } from "@/components/ui/button";
 import { SignOutButton } from "@/components/auth/sign-out-button";
 import { createClient } from "@/lib/supabase/server";
-import { LayoutDashboard, Settings, CreditCard, List } from "lucide-react";
+import { LayoutDashboard, Settings, CreditCard, List, Users } from "lucide-react";
 import { getQueueCount } from "@/app/actions/queue";
 import { FeedbackWidget } from "@/components/feedback-widget";
 
@@ -40,6 +40,16 @@ export default async function DashboardLayout({
             >
               <LayoutDashboard className="h-4 w-4" />
               <span className="hidden sm:inline">Dashboard</span>
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/connections" />}
+            >
+              <Users className="h-4 w-4" />
+              <span className="hidden sm:inline">Connections</span>
             </Button>
 
             <Button
