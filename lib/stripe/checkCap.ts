@@ -9,11 +9,17 @@ export interface CapStatus {
   resetLabel: string;
 }
 
+// Set to true to enforce subscription caps. False = open access (pre-launch mode).
+const BILLING_ENFORCED = false;
+
 /**
  * Check whether an org has remaining research capacity.
  * Uses admin client so it works inside API routes (no RLS).
  */
 export async function checkResearchCap(orgId: string): Promise<CapStatus> {
+  if (!BILLING_ENFORCED) {
+    return { allowed: true, plan: "trial", cap: 9999, used: 0, resetLabel: "" };
+  }
   const adminSupabase = createAdminClient();
 
   const { data: org } = await adminSupabase

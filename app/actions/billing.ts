@@ -35,6 +35,11 @@ export interface CapStatus {
 }
 
 export async function getCapStatus(): Promise<CapStatus> {
+  // Billing not yet enforced — open access until subscription model is activated
+  if (process.env.BILLING_ENFORCED !== "true") {
+    return { allowed: true, resetLabel: "" };
+  }
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { allowed: false, resetLabel: "" };
