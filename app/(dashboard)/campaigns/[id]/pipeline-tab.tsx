@@ -116,7 +116,7 @@ function LeadRow({
       <TableCell>
         <StatusPill status={lead.status} />
       </TableCell>
-      <TableCell className="text-muted-foreground text-sm">
+      <TableCell className="text-muted-foreground text-sm" suppressHydrationWarning>
         {timeAgo(lead.updated_at)}
       </TableCell>
       <TableCell
