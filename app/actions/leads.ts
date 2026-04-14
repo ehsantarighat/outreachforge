@@ -136,6 +136,51 @@ export interface CsvLead {
   location: string;
 }
 
+// ─── Load leads ───────────────────────────────────────────────────────────────
+
+export interface Lead {
+  id: string;
+  campaign_id: string;
+  organization_id: string;
+  status: string;
+  full_name: string;
+  title: string | null;
+  company_name: string | null;
+  company_domain: string | null;
+  linkedin_url: string | null;
+  email: string | null;
+  location: string | null;
+  pasted_profile: string | null;
+  custom_notes: string | null;
+  dossier: Record<string, unknown> | null;
+  drafts: Record<string, unknown> | null;
+  sent_at: string | null;
+  replied_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function loadLeads(campaignId: string): Promise<Lead[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("campaign_id", campaignId)
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  return (data ?? []) as Lead[];
+}
+
+// ─── Delete lead ──────────────────────────────────────────────────────────────
+
+export async function deleteLead(leadId: string, campaignId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("leads").delete().eq("id", leadId);
+  if (error) return { error: error.message };
+  revalidatePath(`/campaigns/${campaignId}`);
+  return { success: true };
+}
+
 export async function importFromCsv(
   campaignId: string,
   leads: CsvLead[]

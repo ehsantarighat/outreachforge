@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { loadCampaign } from "@/app/actions/campaigns";
+import { loadLeads } from "@/app/actions/leads";
 import { CampaignTabs } from "./campaign-tabs";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -11,12 +12,15 @@ export default async function CampaignPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const campaign = await loadCampaign(id);
+  const [campaign, leads] = await Promise.all([
+    loadCampaign(id),
+    loadLeads(id),
+  ]);
 
   if (!campaign) notFound();
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="mx-auto max-w-7xl">
       <div className="mb-6">
         <Link
           href="/dashboard"
@@ -33,7 +37,7 @@ export default async function CampaignPage({
         </div>
       </div>
 
-      <CampaignTabs campaign={campaign} />
+      <CampaignTabs campaign={campaign} initialLeads={leads} />
     </div>
   );
 }
