@@ -35,6 +35,7 @@ import {
   UserPlus,
   LayoutGrid,
   List,
+  Loader2,
   Search,
   Trash2,
   FlaskConical,
@@ -95,10 +96,12 @@ function timeAgo(dateStr: string) {
 
 function LeadRow({
   lead,
+  running,
   onView,
   onDelete,
 }: {
   lead: Lead;
+  running: boolean;
   onView: () => void;
   onDelete: () => void;
 }) {
@@ -107,7 +110,12 @@ function LeadRow({
       className="cursor-pointer hover:bg-muted/50"
       onClick={onView}
     >
-      <TableCell className="font-medium">{lead.full_name}</TableCell>
+      <TableCell className="font-medium">
+        <span className="inline-flex items-center gap-2">
+          {running && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground shrink-0" />}
+          {lead.full_name}
+        </span>
+      </TableCell>
       <TableCell className="text-muted-foreground">{lead.title ?? "—"}</TableCell>
       <TableCell className="text-muted-foreground">{lead.company_name ?? "—"}</TableCell>
       <TableCell>
@@ -283,7 +291,22 @@ export function PipelineTab({
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
+  const [runningLeads, setRunningLeads] = useState<Set<string>>(new Set());
   const [, startTransition] = useTransition();
+
+  function handleLeadUpdated(updated: Lead) {
+    setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    setSelectedLead((prev) => (prev?.id === updated.id ? updated : prev));
+    setRunningLeads((prev) => {
+      const next = new Set(prev);
+      next.delete(updated.id);
+      return next;
+    });
+  }
+
+  function handleResearchStarted(leadId: string) {
+    setRunningLeads((prev) => new Set(prev).add(leadId));
+  }
 
   const filtered = useMemo(() => {
     let list = leads;
@@ -412,6 +435,7 @@ export function PipelineTab({
                   <LeadRow
                     key={lead.id}
                     lead={lead}
+                    running={runningLeads.has(lead.id)}
                     onView={() => openDetail(lead)}
                     onDelete={() => confirmDelete(lead)}
                   />
@@ -444,6 +468,8 @@ export function PipelineTab({
         lead={selectedLead}
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
+        onLeadUpdated={handleLeadUpdated}
+        onResearchStarted={handleResearchStarted}
       />
 
       {/* Delete confirmation */}

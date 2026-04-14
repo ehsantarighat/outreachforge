@@ -171,6 +171,18 @@ export async function loadLeads(campaignId: string): Promise<Lead[]> {
   return (data ?? []) as Lead[];
 }
 
+// ─── Refresh single lead ──────────────────────────────────────────────────────
+
+export async function refreshLead(leadId: string): Promise<Lead | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("leads")
+    .select("*")
+    .eq("id", leadId)
+    .maybeSingle();
+  return (data ?? null) as Lead | null;
+}
+
 // ─── Delete lead ──────────────────────────────────────────────────────────────
 
 export async function deleteLead(leadId: string, campaignId: string) {

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { refreshLead } from "@/app/actions/leads";
 import {
   Sheet,
   SheetContent,
@@ -119,17 +120,49 @@ interface LeadDetailPanelProps {
   lead: Lead | null;
   open: boolean;
   onClose: () => void;
+  onLeadUpdated?: (lead: Lead) => void;
+  onResearchStarted?: (leadId: string) => void;
 }
 
-export function LeadDetailPanel({ lead, open, onClose }: LeadDetailPanelProps) {
+export function LeadDetailPanel({ lead, open, onClose, onLeadUpdated, onResearchStarted }: LeadDetailPanelProps) {
   const [researchPending, setResearchPending] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Stop any running poll when panel closes or lead changes
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, [lead?.id]);
 
   async function handleRunResearch() {
     if (!lead) return;
     setResearchPending(true);
-    // Wired in Step 8
-    await new Promise((r) => setTimeout(r, 800));
-    setResearchPending(false);
+
+    const res = await fetch("/api/research", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leadId: lead.id }),
+    });
+
+    if (!res.ok) {
+      setResearchPending(false);
+      return;
+    }
+
+    onResearchStarted?.(lead.id);
+
+    // Poll every 2 s until status changes away from 'new'
+    const poll = async () => {
+      const updated = await refreshLead(lead.id);
+      if (updated && updated.status !== "new") {
+        setResearchPending(false);
+        onLeadUpdated?.(updated);
+      } else {
+        pollRef.current = setTimeout(poll, 2000);
+      }
+    };
+    pollRef.current = setTimeout(poll, 2000);
   }
 
   return (
