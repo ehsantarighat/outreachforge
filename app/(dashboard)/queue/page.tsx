@@ -1,23 +1,24 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { loadLinkedInQueue } from "@/app/actions/queue";
+import { QueueClient } from "./queue-client";
 
-export default function QueuePage() {
+export default async function QueuePage() {
+  const leads = await loadLinkedInQueue();
+
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="mx-auto max-w-3xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">LinkedIn Queue</h1>
-        <p className="mt-1 text-muted-foreground">
-          Approved LinkedIn messages waiting to be sent manually
+        <h1 className="text-2xl font-bold tracking-tight">LinkedIn Queue</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Approved LinkedIn messages waiting to be sent manually.
+          {leads.length > 0 && (
+            <span className="ml-1 font-medium text-foreground">
+              {leads.length} pending
+            </span>
+          )}
         </p>
       </div>
-      <Card className="border-dashed">
-        <CardHeader className="text-center">
-          <CardTitle>Queue is empty</CardTitle>
-          <CardDescription>
-            Approved LinkedIn drafts will appear here. Click &quot;Copy and open profile&quot; to send manually.
-          </CardDescription>
-        </CardHeader>
-        <CardContent />
-      </Card>
+
+      <QueueClient initialLeads={leads} />
     </div>
   );
 }

@@ -645,6 +645,33 @@ function DraftsPanel({
                 </div>
               </div>
             )}
+
+            {/* LinkedIn queue section */}
+            {drafts.linkedin_dm?.approved && (
+              <div className="rounded-lg border p-4 space-y-2">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-medium">LinkedIn DM</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {lead.linkedin_dm_sent_at
+                        ? `Sent ${new Date(lead.linkedin_dm_sent_at).toLocaleDateString()}`
+                        : "Ready to send via the LinkedIn Queue"}
+                    </p>
+                  </div>
+                  {!lead.linkedin_dm_sent_at && (
+                    <a
+                      href="/queue"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent transition-colors shrink-0"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Go to Queue
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

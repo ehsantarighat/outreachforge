@@ -155,6 +155,7 @@ export interface Lead {
   dossier: Record<string, unknown> | null;
   drafts: Record<string, unknown> | null;
   sent_at: string | null;
+  linkedin_dm_sent_at: string | null;
   replied_at: string | null;
   created_at: string;
   updated_at: string;

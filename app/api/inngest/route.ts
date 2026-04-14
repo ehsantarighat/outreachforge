@@ -1,8 +1,8 @@
 import { serve } from "inngest/next";
 import { inngest } from "@/inngest/client";
-import { researchLead, draftLead } from "@/inngest/functions";
+import { researchLead, draftLead, pollEmailReplies } from "@/inngest/functions";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [researchLead, draftLead],
+  functions: [researchLead, draftLead, pollEmailReplies],
 });
