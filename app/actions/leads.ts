@@ -26,6 +26,7 @@ interface LeadRow {
   linkedin_url?: string;
   email?: string;
   location?: string;
+  pasted_profile?: string;
   custom_notes?: string;
 }
 
@@ -62,6 +63,7 @@ async function insertLeads(
       linkedin_url: l.linkedin_url?.trim() || null,
       email: l.email?.trim() || null,
       location: l.location?.trim() || null,
+      pasted_profile: l.pasted_profile?.trim() || null,
       custom_notes: l.custom_notes?.trim() || null,
     }));
 
@@ -95,6 +97,7 @@ export async function addOneLead(campaignId: string, formData: FormData) {
       linkedin_url: formData.get("linkedin_url") as string,
       email: formData.get("email") as string,
       location: formData.get("location") as string,
+      pasted_profile: formData.get("pasted_profile") as string,
       custom_notes: formData.get("custom_notes") as string,
     },
   ]);

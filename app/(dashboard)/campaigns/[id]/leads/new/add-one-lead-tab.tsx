@@ -73,12 +73,27 @@ export function AddOneLeadTab({ campaignId }: { campaignId: string }) {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="custom_notes">Notes</Label>
+            <Label htmlFor="pasted_profile">
+              Paste LinkedIn profile{" "}
+              <span className="font-normal text-muted-foreground">(recommended)</span>
+            </Label>
+            <Textarea
+              id="pasted_profile"
+              name="pasted_profile"
+              placeholder="Open the person's LinkedIn profile, select all text (Cmd+A), copy (Cmd+C), and paste here. The AI uses this to write a much better personalised message."
+              rows={6}
+            />
+            <p className="text-xs text-muted-foreground">
+              Without this, research quality depends entirely on public web results.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="custom_notes">Additional notes</Label>
             <Textarea
               id="custom_notes"
               name="custom_notes"
-              placeholder="Any context you want the AI to consider when researching or drafting for this lead."
-              rows={3}
+              placeholder="Any extra context you want the AI to consider — e.g. how you know them, a recent conversation, a specific angle to use."
+              rows={2}
             />
           </div>
 
