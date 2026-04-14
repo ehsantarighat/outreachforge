@@ -1,6 +1,6 @@
 import { inngest } from "./client";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { runResearchPipeline } from "@/lib/research/pipeline";
+import { runDraftPipeline } from "@/lib/draft/pipeline";
 
 // ─── Research Lead ────────────────────────────────────────────────────────────
 
@@ -22,27 +22,20 @@ export const researchLead = inngest.createFunction(
   }
 );
 
-// ─── Draft Lead (placeholder — real impl in Step 9) ──────────────────────────
+// ─── Draft Lead ───────────────────────────────────────────────────────────────
 
 export const draftLead = inngest.createFunction(
   {
     id: "draft-lead",
     name: "Draft Lead",
     triggers: [{ event: "outreachforge/lead.draft.requested" }],
+    retries: 2,
   },
   async ({ event, step }) => {
     const { leadId } = event.data as { leadId: string };
 
-    await step.run("mark-drafted", async () => {
-      const supabase = createAdminClient();
-      const { error } = await supabase
-        .from("leads")
-        .update({
-          status: "drafted",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", leadId);
-      if (error) throw new Error(error.message);
+    await step.run("run-draft-pipeline", async () => {
+      await runDraftPipeline(leadId);
     });
 
     return { leadId, status: "drafted" };

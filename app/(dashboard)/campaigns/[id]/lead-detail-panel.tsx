@@ -22,8 +22,9 @@ import {
   Link2,
 } from "lucide-react";
 import type { Lead } from "@/app/actions/leads";
-import { refreshLead, updateDossier } from "@/app/actions/leads";
+import { refreshLead, updateDossier, updateDrafts } from "@/app/actions/leads";
 import type { DossierSchema } from "@/lib/prompts/research";
+import type { DraftsSchema } from "@/lib/prompts/draft";
 
 // ─── Status ───────────────────────────────────────────────────────────────────
 
@@ -256,31 +257,162 @@ function DraftCard({
   title,
   charLimit,
   content,
+  subject,
+  approved,
+  onSave,
+  onSaveSubject,
+  onApprove,
 }: {
   title: string;
   charLimit?: number;
   content?: string;
+  subject?: string;
+  approved?: boolean;
+  onSave?: (v: string) => void;
+  onSaveSubject?: (v: string) => void;
+  onApprove?: () => void;
 }) {
-  const text = content ?? "";
+  const [localContent, setLocalContent] = useState(content ?? "");
+  const [localSubject, setLocalSubject] = useState(subject ?? "");
+
+  const text = localContent;
   const overLimit = charLimit && text.length > charLimit;
+  const isEmpty = !text;
 
   return (
-    <div className="rounded-lg border p-4 space-y-3">
+    <div className={`rounded-lg border p-4 space-y-3 transition-colors ${approved ? "border-green-500/50 bg-green-500/5" : ""}`}>
       <div className="flex items-center justify-between">
         <span className="text-sm font-semibold">{title}</span>
-        {text && (
-          <span className={`text-xs ${overLimit ? "text-red-500" : "text-muted-foreground"}`}>
-            {text.length}{charLimit ? `/${charLimit}` : ""} chars
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {approved && (
+            <span className="text-xs font-medium text-green-600 bg-green-500/15 rounded-full px-2 py-0.5">
+              Approved
+            </span>
+          )}
+          {text && (
+            <span className={`text-xs ${overLimit ? "text-red-500" : "text-muted-foreground"}`}>
+              {text.length}{charLimit ? `/${charLimit}` : ""} chars
+            </span>
+          )}
+        </div>
       </div>
-      <div className="min-h-[80px] rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground italic">
-        {text || "No draft yet — click Generate drafts to create one."}
-      </div>
+
+      {isEmpty ? (
+        <div className="min-h-[80px] rounded-md bg-muted/40 px-3 py-2 text-sm text-muted-foreground italic flex items-center justify-center">
+          No draft yet — click Generate drafts to create one.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {subject !== undefined && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">Subject</p>
+              <Textarea
+                value={localSubject}
+                onChange={(e) => setLocalSubject(e.target.value)}
+                onBlur={() => { if (localSubject !== subject) onSaveSubject?.(localSubject); }}
+                rows={1}
+                className="text-sm resize-none border-transparent bg-transparent focus:border-input focus:bg-background transition-colors"
+              />
+            </div>
+          )}
+          <div>
+            {subject !== undefined && (
+              <p className="text-xs font-medium text-muted-foreground mb-1">Body</p>
+            )}
+            <Textarea
+              value={localContent}
+              onChange={(e) => setLocalContent(e.target.value)}
+              onBlur={() => { if (localContent !== content) onSave?.(localContent); }}
+              rows={subject !== undefined ? 6 : 4}
+              className="text-sm resize-none border-transparent bg-transparent focus:border-input focus:bg-background transition-colors"
+            />
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2">
-        <Button size="sm" variant="outline" disabled={!text}>Approve</Button>
-        <Button size="sm" variant="ghost" disabled>Regenerate</Button>
+        <Button
+          size="sm"
+          variant={approved ? "default" : "outline"}
+          disabled={isEmpty || approved}
+          onClick={onApprove}
+        >
+          {approved ? "✓ Approved" : "Approve"}
+        </Button>
       </div>
+    </div>
+  );
+}
+
+// ─── Drafts panel ─────────────────────────────────────────────────────────────
+
+function DraftsPanel({
+  lead,
+  draftPending,
+  onGenerateDrafts,
+  onLeadUpdated,
+}: {
+  lead: Lead;
+  draftPending: boolean;
+  onGenerateDrafts: () => void;
+  onLeadUpdated?: (l: Lead) => void;
+}) {
+  const drafts = (lead.drafts as DraftsSchema | null) ?? null;
+
+  const save = useCallback(
+    async (patch: Partial<DraftsSchema>) => {
+      if (!drafts) return;
+      const next = { ...drafts, ...patch };
+      const res = await updateDrafts(lead.id, next as Record<string, unknown>);
+      if (res.error) toast.error("Save failed: " + res.error);
+      else onLeadUpdated?.({ ...lead, drafts: next });
+    },
+    [drafts, lead, onLeadUpdated]
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Drafts</h3>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!lead.dossier || draftPending}
+          onClick={onGenerateDrafts}
+        >
+          {draftPending ? (
+            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Sparkles className="mr-2 h-3.5 w-3.5" />
+          )}
+          {drafts ? "Regenerate drafts" : "Generate drafts"}
+        </Button>
+      </div>
+
+      <DraftCard
+        title="Email"
+        content={drafts?.email.body}
+        subject={drafts?.email.subject}
+        approved={drafts?.email.approved}
+        onSave={(v) => save({ email: { ...drafts!.email, body: v } })}
+        onSaveSubject={(v) => save({ email: { ...drafts!.email, subject: v } })}
+        onApprove={() => save({ email: { ...drafts!.email, approved: true } })}
+      />
+      <DraftCard
+        title="LinkedIn connection note"
+        charLimit={300}
+        content={drafts?.linkedin_connect.note}
+        approved={drafts?.linkedin_connect.approved}
+        onSave={(v) => save({ linkedin_connect: { ...drafts!.linkedin_connect, note: v } })}
+        onApprove={() => save({ linkedin_connect: { ...drafts!.linkedin_connect, approved: true } })}
+      />
+      <DraftCard
+        title="LinkedIn DM"
+        content={drafts?.linkedin_dm.message}
+        approved={drafts?.linkedin_dm.approved}
+        onSave={(v) => save({ linkedin_dm: { ...drafts!.linkedin_dm, message: v } })}
+        onApprove={() => save({ linkedin_dm: { ...drafts!.linkedin_dm, approved: true } })}
+      />
     </div>
   );
 }
@@ -303,10 +435,15 @@ export function LeadDetailPanel({
   onResearchStarted,
 }: LeadDetailPanelProps) {
   const [researchPending, setResearchPending] = useState(false);
+  const [draftPending, setDraftPending] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    return () => { if (pollRef.current) clearTimeout(pollRef.current); };
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+      if (draftPollRef.current) clearTimeout(draftPollRef.current);
+    };
   }, [lead?.id]);
 
   async function handleRunResearch() {
@@ -344,7 +481,39 @@ export function LeadDetailPanel({
     pollRef.current = setTimeout(poll, 2000);
   }
 
-  const drafts = lead?.drafts as Record<string, Record<string, string>> | null;
+  async function handleGenerateDrafts() {
+    if (!lead) return;
+    setDraftPending(true);
+
+    const res = await fetch("/api/draft", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ leadId: lead.id }),
+    });
+
+    if (!res.ok) {
+      setDraftPending(false);
+      const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+      if (body.error === "no_dossier") {
+        toast.error("Run research first to generate drafts.");
+      } else {
+        toast.error("Failed to start drafting. Check the server logs.");
+      }
+      return;
+    }
+
+    const pollDraft = async () => {
+      const updated = await refreshLead(lead.id);
+      if (updated && updated.status === "drafted") {
+        setDraftPending(false);
+        onLeadUpdated?.(updated);
+        toast.success(`Drafts ready for ${updated.full_name}`);
+      } else {
+        draftPollRef.current = setTimeout(pollDraft, 2000);
+      }
+    };
+    draftPollRef.current = setTimeout(pollDraft, 2000);
+  }
 
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
@@ -424,28 +593,13 @@ export function LeadDetailPanel({
 
               {/* Right — Drafts */}
               <ScrollArea className="flex-1 p-5">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold">Drafts</h3>
-                    <Button size="sm" variant="outline" disabled={!lead.dossier}>
-                      <Sparkles className="mr-2 h-3.5 w-3.5" />
-                      Generate drafts
-                    </Button>
-                  </div>
-                  <DraftCard
-                    title="Email"
-                    content={drafts?.email?.body}
-                  />
-                  <DraftCard
-                    title="LinkedIn connection note"
-                    charLimit={300}
-                    content={drafts?.linkedin_connect?.note}
-                  />
-                  <DraftCard
-                    title="LinkedIn DM"
-                    content={drafts?.linkedin_dm?.message}
-                  />
-                </div>
+                <DraftsPanel
+                  key={lead.id}
+                  lead={lead}
+                  draftPending={draftPending}
+                  onGenerateDrafts={handleGenerateDrafts}
+                  onLeadUpdated={onLeadUpdated}
+                />
               </ScrollArea>
             </div>
           </div>

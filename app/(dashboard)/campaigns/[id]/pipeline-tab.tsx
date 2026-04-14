@@ -196,9 +196,8 @@ function LeadKebab({
           <button type="button" className={item} onClick={() => { setOpen(false); onResearch(); }}>
             <FlaskConical className="h-4 w-4" /> Research
           </button>
-          <button type="button" className={item} disabled>
+          <button type="button" className={item} onClick={() => { setOpen(false); onView(); }}>
             <Sparkles className="h-4 w-4" /> Draft
-            <span className="ml-auto text-xs text-muted-foreground">Step 9</span>
           </button>
           <div className="-mx-1 my-1 h-px bg-border" />
           <button
