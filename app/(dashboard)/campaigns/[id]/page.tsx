@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { loadCampaign } from "@/app/actions/campaigns";
 import { loadLeads } from "@/app/actions/leads";
 import { loadCampaignMembers, getMyRole } from "@/app/actions/campaign-members";
+import { getCapStatus } from "@/app/actions/billing";
 import { createClient } from "@/lib/supabase/server";
 import { CampaignTabs } from "./campaign-tabs";
 import { Badge } from "@/components/ui/badge";
@@ -17,11 +18,12 @@ export default async function CampaignPage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [campaign, leads, members, myRole] = await Promise.all([
+  const [campaign, leads, members, myRole, capStatus] = await Promise.all([
     loadCampaign(id),
     loadLeads(id),
     loadCampaignMembers(id),
     getMyRole(id),
+    getCapStatus(),
   ]);
 
   if (!campaign) notFound();
@@ -50,6 +52,7 @@ export default async function CampaignPage({
         members={members}
         myRole={myRole}
         currentUserId={user?.id ?? ""}
+        capStatus={capStatus}
       />
     </div>
   );

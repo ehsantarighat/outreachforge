@@ -6,6 +6,7 @@ import { SettingsTab } from "./settings-tab";
 import { PipelineTab } from "./pipeline-tab";
 import type { Lead } from "@/app/actions/leads";
 import type { CampaignMember, MemberRole } from "@/app/actions/campaign-members";
+import type { CapStatus } from "@/app/actions/billing";
 
 interface Campaign {
   id: string;
@@ -21,12 +22,14 @@ export function CampaignTabs({
   members,
   myRole,
   currentUserId,
+  capStatus,
 }: {
   campaign: Campaign;
   initialLeads: Lead[];
   members: CampaignMember[];
   myRole: MemberRole | null;
   currentUserId: string;
+  capStatus: CapStatus;
 }) {
   return (
     <Tabs defaultValue="pipeline">
@@ -37,7 +40,7 @@ export function CampaignTabs({
       </TabsList>
 
       <TabsContent value="pipeline">
-        <PipelineTab campaignId={campaign.id} initialLeads={initialLeads} />
+        <PipelineTab campaignId={campaign.id} initialLeads={initialLeads} capStatus={capStatus} />
       </TabsContent>
 
       <TabsContent value="brief">

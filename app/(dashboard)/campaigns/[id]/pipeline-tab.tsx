@@ -322,9 +322,11 @@ function StatusFilter({
 export function PipelineTab({
   campaignId,
   initialLeads,
+  capStatus,
 }: {
   campaignId: string;
   initialLeads: Lead[];
+  capStatus: { allowed: boolean; resetLabel: string };
 }) {
   const [leads, setLeads] = useState<Lead[]>(initialLeads);
   const [view, setView] = useState<"table" | "kanban">("table");
@@ -555,6 +557,7 @@ export function PipelineTab({
         onClose={() => setPanelOpen(false)}
         onLeadUpdated={handleLeadUpdated}
         onResearchStarted={handleResearchStarted}
+        capStatus={capStatus}
       />
 
       {/* Delete confirmation */}

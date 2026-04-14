@@ -1,23 +1,30 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { redirect } from "next/navigation";
+import { loadBillingData } from "@/app/actions/billing";
+import { BillingClient } from "./billing-client";
 
-export default function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ success?: string; canceled?: string }>;
+}) {
+  const billing = await loadBillingData();
+  if (!billing) redirect("/login");
+
+  const params = await searchParams;
+
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">Billing</h1>
-        <p className="mt-1 text-muted-foreground">
-          Manage your subscription and usage
+    <div className="mx-auto max-w-3xl space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Manage your plan and view usage.
         </p>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>Billing</CardTitle>
-          <CardDescription>
-            Subscription management and usage tracking — coming in Step 14.
-          </CardDescription>
-        </CardHeader>
-        <CardContent />
-      </Card>
+      <BillingClient
+        billing={billing}
+        successParam={!!params.success}
+        canceledParam={!!params.canceled}
+      />
     </div>
   );
 }

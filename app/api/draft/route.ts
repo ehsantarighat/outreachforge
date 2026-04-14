@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { runDraftPipeline } from "@/lib/draft/pipeline";
+import { checkResearchCap } from "@/lib/stripe/checkCap";
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient();
@@ -16,11 +17,24 @@ export async function POST(req: NextRequest) {
   // Verify lead belongs to user's org (RLS enforces this)
   const { data: lead } = await supabase
     .from("leads")
-    .select("id, dossier")
+    .select("id, dossier, organization_id")
     .eq("id", leadId)
     .maybeSingle();
   if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   if (!lead.dossier) return NextResponse.json({ error: "no_dossier" }, { status: 422 });
+
+  // Usage cap check (drafts share the same cap as research)
+  const cap = await checkResearchCap(lead.organization_id as string);
+  if (!cap.allowed) {
+    return NextResponse.json(
+      {
+        error: "cap_exceeded",
+        message: `You've hit your ${cap.cap} lead cap for this period. Resets ${cap.resetLabel}.`,
+        cap,
+      },
+      { status: 429 }
+    );
+  }
 
   // Try Inngest first
   let inngestSent = false;

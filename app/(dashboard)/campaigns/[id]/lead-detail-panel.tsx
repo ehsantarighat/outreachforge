@@ -430,11 +430,13 @@ function DraftsPanel({
   draftPending,
   onGenerateDrafts,
   onLeadUpdated,
+  capStatus,
 }: {
   lead: Lead;
   draftPending: boolean;
   onGenerateDrafts: () => void;
   onLeadUpdated?: (l: Lead) => void;
+  capStatus?: { allowed: boolean; resetLabel: string };
 }) {
   const [regenDialog, setRegenDialog] = useState<Artifact | null>(null);
   const [regenPending, setRegenPending] = useState(false);
@@ -558,8 +560,9 @@ function DraftsPanel({
           <Button
             size="sm"
             variant="outline"
-            disabled={!lead.dossier || draftPending}
+            disabled={!lead.dossier || draftPending || capStatus?.allowed === false}
             onClick={onGenerateDrafts}
+            title={capStatus?.allowed === false ? `Monthly cap reached. Resets ${capStatus.resetLabel}.` : undefined}
           >
             {draftPending ? (
               <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
@@ -759,6 +762,7 @@ interface LeadDetailPanelProps {
   onClose: () => void;
   onLeadUpdated?: (lead: Lead) => void;
   onResearchStarted?: (leadId: string) => void;
+  capStatus?: { allowed: boolean; resetLabel: string };
 }
 
 export function LeadDetailPanel({
@@ -767,6 +771,7 @@ export function LeadDetailPanel({
   onClose,
   onLeadUpdated,
   onResearchStarted,
+  capStatus,
 }: LeadDetailPanelProps) {
   const [researchPending, setResearchPending] = useState(false);
   const [draftPending, setDraftPending] = useState(false);
@@ -792,7 +797,15 @@ export function LeadDetailPanel({
 
     if (!res.ok) {
       setResearchPending(false);
-      toast.error("Failed to start research. Check the server logs.");
+      const body = await res.json().catch(() => ({})) as Record<string, unknown>;
+      if (res.status === 429) {
+        toast.error(body.message as string ?? "Monthly cap reached.", {
+          description: "Upgrade your plan to continue.",
+          action: { label: "Billing", onClick: () => window.location.href = "/billing" },
+        });
+      } else {
+        toast.error("Failed to start research. Check the server logs.");
+      }
       return;
     }
 
@@ -828,7 +841,12 @@ export function LeadDetailPanel({
     if (!res.ok) {
       setDraftPending(false);
       const body = await res.json().catch(() => ({})) as Record<string, unknown>;
-      if (body.error === "no_dossier") {
+      if (res.status === 429) {
+        toast.error(body.message as string ?? "Monthly cap reached.", {
+          description: "Upgrade your plan to continue.",
+          action: { label: "Billing", onClick: () => window.location.href = "/billing" },
+        });
+      } else if (body.error === "no_dossier") {
         toast.error("Run research first to generate drafts.");
       } else {
         toast.error("Failed to start drafting. Check the server logs.");
@@ -897,7 +915,8 @@ export function LeadDetailPanel({
                       size="sm"
                       variant="outline"
                       onClick={handleRunResearch}
-                      disabled={researchPending}
+                      disabled={researchPending || capStatus?.allowed === false}
+                      title={capStatus?.allowed === false ? `Monthly cap reached. Resets ${capStatus.resetLabel}.` : undefined}
                     >
                       {researchPending ? (
                         <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
@@ -929,6 +948,7 @@ export function LeadDetailPanel({
                   draftPending={draftPending}
                   onGenerateDrafts={handleGenerateDrafts}
                   onLeadUpdated={onLeadUpdated}
+                  capStatus={capStatus}
                 />
               </ScrollArea>
             </div>
