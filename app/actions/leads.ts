@@ -186,6 +186,22 @@ export async function updateDossier(
   return { success: true };
 }
 
+// ─── Update lead field ────────────────────────────────────────────────────────
+
+export async function updateLeadField(
+  leadId: string,
+  field: "email" | "linkedin_url" | "title" | "company_name" | "location",
+  value: string
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("leads")
+    .update({ [field]: value || null, updated_at: new Date().toISOString() })
+    .eq("id", leadId);
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
 // ─── Update lead status ───────────────────────────────────────────────────────
 
 export async function updateLeadStatus(leadId: string, status: string) {

@@ -31,7 +31,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { CheckCheck, RefreshCw, Send } from "lucide-react";
 import type { Lead } from "@/app/actions/leads";
-import { refreshLead, updateDossier, updateDrafts, updateLeadStatus } from "@/app/actions/leads";
+import { refreshLead, updateDossier, updateDrafts, updateLeadStatus, updateLeadField } from "@/app/actions/leads";
 import type { DossierSchema } from "@/lib/prompts/research";
 import type { DraftsSchema } from "@/lib/prompts/draft";
 
@@ -659,6 +659,71 @@ function DraftsPanel({
   );
 }
 
+// ─── Inline email field ───────────────────────────────────────────────────────
+
+function EmailField({
+  lead,
+  onLeadUpdated,
+}: {
+  lead: Lead;
+  onLeadUpdated?: (l: Lead) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(lead.email ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  async function handleSave() {
+    setEditing(false);
+    if (value === (lead.email ?? "")) return;
+    const res = await updateLeadField(lead.id, "email", value);
+    if (res.error) {
+      toast.error("Failed to save email: " + res.error);
+    } else {
+      onLeadUpdated?.({ ...lead, email: value || null });
+      toast.success("Email updated");
+    }
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="email"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleSave();
+          if (e.key === "Escape") { setValue(lead.email ?? ""); setEditing(false); }
+        }}
+        placeholder="email@company.com"
+        className="inline-flex items-center gap-1 text-xs text-foreground bg-background border border-input rounded px-2 py-0.5 outline-none focus:ring-1 focus:ring-ring"
+      />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => setEditing(true)}
+      className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground group"
+      title="Click to edit email"
+    >
+      <Mail className="h-3 w-3" />
+      {lead.email ? (
+        <span>{lead.email}</span>
+      ) : (
+        <span className="italic opacity-60">Add email…</span>
+      )}
+      <span className="opacity-0 group-hover:opacity-50 text-[10px] ml-0.5">✎</span>
+    </button>
+  );
+}
+
 // ─── Main panel ───────────────────────────────────────────────────────────────
 
 interface LeadDetailPanelProps {
@@ -789,11 +854,7 @@ export function LeadDetailPanel({
                       <ExternalLink className="h-3 w-3" />
                     </a>
                   )}
-                  {lead.email && (
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                      <Mail className="h-3 w-3" />{lead.email}
-                    </span>
-                  )}
+                  <EmailField lead={lead} onLeadUpdated={onLeadUpdated} />
                 </div>
               </div>
             </SheetHeader>
