@@ -135,16 +135,7 @@ function LeadKebab({
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 data-[state=open]:bg-muted"
-            nativeButton={false}
-          />
-        }
-      >
+      <DropdownMenuTrigger className="inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring data-[popup-open]:bg-muted">
         <MoreHorizontal className="h-4 w-4" />
         <span className="sr-only">Lead actions</span>
       </DropdownMenuTrigger>
